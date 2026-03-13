@@ -530,28 +530,67 @@ function shuffle(arr) {
   return a;
 }
 
+/*
+ * partnerHistory: Map<playerId, Set<playerId>> — who each player was paired with last round.
+ * Cleared at the start of each generateMatches() call.
+ * A repeat-partner penalty is added to the score so the algorithm avoids them
+ * while still prioritising skill balance.
+ */
+var partnerHistory = {};   // {playerId: {partnerId: true}}
+
+function wasPartner(a, b) {
+  return !!(partnerHistory[a.id] && partnerHistory[a.id][b.id]);
+}
+
+function recordPartners(team1, team2) {
+  // team1 = [p, p], team2 = [p, p]
+  function link(a, b) {
+    if (!partnerHistory[a.id]) partnerHistory[a.id] = {};
+    if (!partnerHistory[b.id]) partnerHistory[b.id] = {};
+    partnerHistory[a.id][b.id] = true;
+    partnerHistory[b.id][a.id] = true;
+  }
+  link(team1[0], team1[1]);
+  link(team2[0], team2[1]);
+}
+
 function findBestPairing(pool) {
-  var best=null,bestDiff=9999,limit=Math.min(pool.length,8),sub=pool.slice(0,limit);
+  // REPEAT_PENALTY: added to the skill-diff score when two players were partners last round.
+  // Value of 3 means a repeat partnership is only accepted if it saves >=3 skill points of imbalance.
+  var REPEAT_PENALTY = 3;
+  var best=null, bestScore=9999;
+  var limit=Math.min(pool.length,8), sub=pool.slice(0,limit);
   outer:for(var a=0;a<limit-3;a++)
     for(var b=a+1;b<limit-2;b++)
       for(var c=b+1;c<limit-1;c++)
         for(var d=c+1;d<limit;d++){
-          var combos=[[[sub[a],sub[b]],[sub[c],sub[d]]],[[sub[a],sub[c]],[sub[b],sub[d]]],[[sub[a],sub[d]],[sub[b],sub[c]]]];
+          var combos=[[[sub[a],sub[b]],[sub[c],sub[d]]],
+                      [[sub[a],sub[c]],[sub[b],sub[d]]],
+                      [[sub[a],sub[d]],[sub[b],sub[c]]]];
           for(var k=0;k<3;k++){
-            var diff=Math.abs((combos[k][0][0].skill+combos[k][0][1].skill)-(combos[k][1][0].skill+combos[k][1][1].skill));
-            if(diff<bestDiff){bestDiff=diff;best=combos[k];}
-            if(bestDiff===0) break outer;
+            var t1=combos[k][0], t2=combos[k][1];
+            var skillDiff=Math.abs((t1[0].skill+t1[1].skill)-(t2[0].skill+t2[1].skill));
+            // Penalise if either team repeats a partnership from the previous round
+            var penalty=0;
+            if(wasPartner(t1[0],t1[1])) penalty+=REPEAT_PENALTY;
+            if(wasPartner(t2[0],t2[1])) penalty+=REPEAT_PENALTY;
+            var score=skillDiff+penalty;
+            if(score<bestScore){bestScore=score;best=combos[k];}
+            if(bestScore===0) break outer;
           }
         }
   return best||[[sub[0],sub[1]],[sub[2],sub[3]]];
 }
 
 function assignCourts(active, courts) {
+  // Shuffle first so court groupings vary each round, then snake-distribute by skill
+  var shuffled = shuffle(active);
+  shuffled.sort(function(a,b){return b.skill-a.skill;});
   var buckets=[];
   for(var c=0;c<courts;c++) buckets.push([]);
   var dir=1,idx=0;
-  for(var i=0;i<active.length;i++){
-    buckets[idx].push(active[i]); idx+=dir;
+  for(var i=0;i<shuffled.length;i++){
+    buckets[idx].push(shuffled[i]); idx+=dir;
     if(idx>=courts){idx=courts-1;dir=-1;} else if(idx<0){idx=0;dir=1;}
   }
   return buckets.map(function(b){return findBestPairing(shuffle(b));});
@@ -584,6 +623,9 @@ function generateMatches() {
       ?'<span class="sep">&middot;</span><span><strong>'+sittingCount+'</strong> sit out per round</span>'
       :'<span class="sep">&middot;</span><span>Everyone plays every round</span>');
 
+  // Reset partner history for this generation run
+  partnerHistory = {};
+
   // Fair sit-out queue
   var sitQ=[];
   function pickSitters(n){
@@ -596,8 +638,10 @@ function generateMatches() {
   for(var r=0;r<numRounds;r++){
     var sitting=sittingCount>0?pickSitters(sittingCount):[];
     var active=pp.filter(function(p){return sitting.indexOf(p)<0;});
-    active.sort(function(a,b){return b.skill-a.skill;});
     var matches=assignCourts(active,courts);
+    // Record partnerships so next round avoids repeating them
+    partnerHistory={};
+    matches.forEach(function(pair){ recordPartners(pair[0],pair[1]); });
 
     html+='<div class="round-block"><div class="round-header">'+
       '<span class="round-label">Round '+(r+1)+'</span>'+
