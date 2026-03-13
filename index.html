@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Badminton Team Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #ffffff; --bg-secondary: #f5f5f3; --bg-tertiary: #eeede9;
+    --text: #1a1a1a; --text-secondary: #666660; --text-tertiary: #999993;
+    --border: rgba(0,0,0,0.14); --border-medium: rgba(0,0,0,0.24);
+    --accent: #185FA5; --accent-light: #E6F1FB;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --bg-secondary: #2c2c2e; --bg-tertiary: #3a3a3c;
+      --text: #f0f0ee; --text-secondary: #a0a09a; --text-tertiary: #666660;
+      --border: rgba(255,255,255,0.13); --border-medium: rgba(255,255,255,0.22);
+      --accent: #4A9EE8; --accent-light: #0C2A4A;
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-secondary); color: var(--text);
+    min-height: 100vh; min-height: -webkit-fill-available;
+    padding: 24px 16px 60px; line-height: 1.5;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  header { display: flex; align-items: center; margin-bottom: 28px; }
+  header > * + * { margin-left: 14px; }
+  .logo { width: 44px; height: 44px; background: var(--accent); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 24px; height: 24px; }
+  h1 { font-size: 22px; font-weight: 600; color: var(--text); }
+  .sub { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 14px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat-box { background: var(--bg-secondary); border-radius: var(--radius); padding: 12px 10px; text-align: center; }
+  .stat-val { font-size: 20px; font-weight: 600; color: var(--text); }
+  .stat-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  .add-row { display: flex; align-items: stretch; margin-bottom: 16px; flex-wrap: wrap; }
+  .add-row > * + * { margin-left: 8px; }
+  .add-row input, .add-row select {
+    padding: 11px 12px; border: 1px solid var(--border-medium); border-radius: var(--radius);
+    font-size: 16px; background: var(--bg); color: var(--text); font-family: inherit; outline: none;
+    -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
+  }
+  .add-row input:focus, .add-row select:focus { border-color: var(--accent); }
+  .add-row input { flex: 1; min-width: 140px; }
+  .add-row select {
+    width: 160px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px;
+  }
+
+  button { -webkit-appearance: none; appearance: none; touch-action: manipulation; font-family: inherit; }
+  .btn-primary  { padding: 11px 18px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: opacity 0.15s; }
+  .btn-primary:active { opacity: 0.75; }
+  .btn-secondary{ padding: 11px 16px; background: none; color: var(--text-secondary); border: 1px solid var(--border-medium); border-radius: var(--radius); font-size: 14px; cursor: pointer; }
+  .btn-secondary:active { background: var(--bg-secondary); }
+  .btn-danger   { padding: 11px 16px; background: none; color: #A32D2D; border: 1px solid #F09595; border-radius: var(--radius); font-size: 14px; cursor: pointer; }
+  .btn-danger:active { background: #FCEBEB; }
+  .btn-pdf      { padding: 11px 18px; background: none; color: #27500A; border: 1px solid #97C459; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; }
+  .btn-pdf svg  { margin-right: 6px; flex-shrink: 0; }
+  .btn-pdf:active { background: #EAF3DE; }
+
+  /* ── Roster section headers ── */
+  .section-header { display: flex; align-items: center; margin-bottom: 10px; }
+  .section-header > * + * { margin-left: 8px; }
+  .section-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); }
+  .section-count { font-size: 11px; font-weight: 600; background: var(--bg-tertiary); color: var(--text-secondary); padding: 2px 8px; border-radius: 20px; }
+  .section-count.active { background: var(--accent-light); color: var(--accent); }
+
+  /* ── Player rows ── */
+  .player-row { display: flex; align-items: center; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+  .player-row > * + * { margin-left: 10px; }
+  .player-row.absent { opacity: 0.55; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .player-name { flex: 1; font-size: 14px; color: var(--text); }
+  .skill-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; flex-shrink: 0; }
+  .skill-num { font-size: 13px; font-weight: 600; color: var(--text-secondary); min-width: 20px; text-align: right; }
+
+  /* Playing/Absent toggle pill */
+  .btn-toggle { height: 28px; padding: 0 10px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; border: 1px solid; }
+  .btn-toggle.to-absent  { color: #7a5c00; border-color: #d4a820; background: #fff8e0; }
+  .btn-toggle.to-absent:active  { background: #f0e0a0; }
+  .btn-toggle.to-playing { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+  .btn-toggle.to-playing:active { opacity: 0.8; }
+  @media (prefers-color-scheme: dark) {
+    .btn-toggle.to-absent  { color: #c8a030; border-color: #5a4400; background: #2a2000; }
+    .btn-toggle.to-playing { color: #4A9EE8; border-color: #1a3a5a; background: #0C2A4A; }
+  }
+
+  .btn-remove { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-medium); background: none; cursor: pointer; color: var(--text-tertiary); font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+  .btn-remove:active { background: #FCEBEB; color: #A32D2D; }
+
+  .empty-state { text-align: center; padding: 24px 16px; color: var(--text-tertiary); font-size: 14px; border: 1px dashed var(--border-medium); border-radius: var(--radius); margin-bottom: 8px; }
+  .section-divider { height: 1px; background: var(--border); margin: 20px 0 18px; }
+
+  /* Matches tab controls */
+  .gen-controls { display: flex; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .gen-controls > * + * { margin-left: 10px; }
+  .gen-controls label { font-size: 14px; color: var(--text-secondary); }
+  .count-input { width: 72px; padding: 11px 12px; border: 1px solid var(--border-medium); border-radius: var(--radius); font-size: 16px; background: var(--bg); color: var(--text); font-family: inherit; outline: none; text-align: center; -webkit-appearance: none; appearance: none; }
+  .count-input:focus { border-color: var(--accent); }
+  .action-row { display: flex; align-items: center; flex-wrap: wrap; }
+  .action-row > * + * { margin-left: 8px; }
+
+  .courts-info-bar { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .courts-info-bar > * + * { margin-left: 10px; }
+  .courts-info-bar span { font-size: 13px; color: var(--text-secondary); }
+  .courts-info-bar strong { color: var(--text); font-weight: 600; }
+  .sep { color: var(--border-medium) !important; }
+
+  /* Saved match banner */
+  .saved-banner { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 20px; font-size: 12px; color: var(--text-secondary); }
+  .saved-banner strong { color: var(--text); font-weight: 600; }
+
+  /* Match output */
+  .round-block { margin-bottom: 28px; }
+  .round-header { display: flex; align-items: center; margin-bottom: 12px; }
+  .round-header > * + * { margin-left: 10px; }
+  .round-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text); white-space: nowrap; }
+  .round-courts-badge { font-size: 11px; font-weight: 500; background: var(--accent-light); color: var(--accent); padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .round-sitting-badge { font-size: 11px; color: var(--text-tertiary); background: var(--bg-tertiary); padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .round-divider { flex: 1; height: 1px; background: var(--border); }
+
+  .courts-grid { display: grid; gap: 10px; }
+  .courts-1 { grid-template-columns: 1fr; }
+  .courts-2 { grid-template-columns: repeat(2, 1fr); }
+  .courts-3 { grid-template-columns: repeat(3, 1fr); }
+
+  .match-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px; }
+  .match-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .match-num { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-tertiary); }
+
+  .vs-row { display: grid; grid-template-columns: minmax(0,1fr) 28px minmax(0,1fr); align-items: start; gap: 6px; }
+  .team-col { display: flex; flex-direction: column; }
+  .team-col > * + * { margin-top: 7px; }
+  .team-player { display: flex; align-items: center; }
+  .team-player > * + * { margin-left: 7px; }
+  .tp-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+  .tp-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .vs-divider { display: flex; align-items: center; justify-content: center; padding-top: 4px; font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+  .team-footer { font-size: 11px; color: var(--text-tertiary); margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .team-total-val { font-size: 12px; font-weight: 600; color: var(--text); }
+
+  .balance-section { margin-top: 10px; }
+  .balance-bar { height: 3px; border-radius: 2px; background: var(--bg-tertiary); overflow: hidden; }
+  .balance-fill { height: 100%; border-radius: 2px; background: #1D9E75; }
+  .balance-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 3px; }
+  .balance-pct { font-weight: 600; color: var(--text-secondary); }
+
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 500; }
+  .tag-perfect { background: #EAF3DE; color: #27500A; }
+  .tag-great   { background: #E6F1FB; color: #0C447C; }
+  .tag-ok      { background: #FAEEDA; color: #633806; }
+
+  .sitting-out { margin-top: 8px; background: var(--bg-secondary); border-radius: var(--radius); padding: 10px 14px; display: flex; align-items: center; flex-wrap: wrap; }
+  .sitting-out > * + * { margin-left: 10px; }
+  .sitting-label { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
+  .sitting-players { display: flex; flex-wrap: wrap; }
+  .sitting-players > * + * { margin-left: 6px; }
+  .sitting-chip { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px 3px 4px; margin-top: 4px; }
+  .sitting-chip > * + * { margin-left: 6px; }
+  .sitting-av { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+  .sitting-nm { font-size: 12px; color: var(--text-secondary); }
+
+  .tab-bar { display: flex; background: var(--bg-secondary); border-radius: var(--radius); padding: 4px; margin-bottom: 20px; }
+  .tab-bar > * + * { margin-left: 4px; }
+  .tab-btn { flex: 1; padding: 9px; border: none; background: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: background 0.15s, color 0.15s; }
+  .tab-btn.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .notice { background: var(--accent-light); border: 1px solid rgba(24,95,165,0.2); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--accent); margin-bottom: 16px; display: none; }
+
+  @media (max-width: 520px) {
+    .courts-2, .courts-3 { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── PDF / Print styles ── */
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: #fff !important; color: #1a1a1a !important; padding: 0 !important; }
+    .container > header, .tab-bar, #tab-players, .gen-controls, .action-row,
+    #courts-info-bar, .saved-banner { display: none !important; }
+    #tab-matches { display: block !important; }
+    #pdf-header { display: block !important; }
+    .round-block { page-break-inside: avoid; margin-bottom: 20px; }
+    .match-card { page-break-inside: avoid; border: 1px solid #ddd !important; background: #fff !important; }
+    .courts-2 { grid-template-columns: repeat(2, 1fr) !important; }
+    .courts-3 { grid-template-columns: repeat(3, 1fr) !important; }
+    .round-label { color: #1a1a1a !important; }
+    .round-courts-badge { background: #E6F1FB !important; color: #0C447C !important; }
+    .round-sitting-badge { background: #eeede9 !important; color: #666 !important; }
+    .round-divider { background: #ddd !important; }
+    .tp-name { color: #1a1a1a !important; }
+    .match-num, .vs-divider { color: #888 !important; }
+    .team-footer { color: #888 !important; border-top-color: #eee !important; }
+    .team-total-val { color: #1a1a1a !important; }
+    .balance-bar { background: #eee !important; }
+    .balance-fill { background: #1D9E75 !important; }
+    .balance-labels { color: #888 !important; }
+    .balance-pct { color: #555 !important; }
+    .tag-perfect { background: #EAF3DE !important; color: #27500A !important; }
+    .tag-great   { background: #E6F1FB !important; color: #0C447C !important; }
+    .tag-ok      { background: #FAEEDA !important; color: #633806 !important; }
+    .sitting-out { background: #f5f5f3 !important; }
+    .sitting-label { color: #888 !important; }
+    .sitting-chip { background: #fff !important; border-color: #ddd !important; }
+    .sitting-nm { color: #555 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- PDF-only header -->
+  <div id="pdf-header" style="display:none; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #ddd;">
+    <div style="display:flex; align-items:center;">
+      <div style="width:36px;height:36px;background:#185FA5;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:12px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="3" ry="4"/><path d="M12 9l6 12H6L12 9z"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </div>
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#1a1a1a;" id="pdf-title">Badminton Matches</div>
+        <div style="font-size:12px;color:#888;margin-top:2px;" id="pdf-subtitle"></div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="5" rx="3" ry="4"/>
+        <path d="M12 9l6 12H6L12 9z"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Badminton Team Generator</h1>
+      <div class="sub">Balanced doubles &middot; simultaneous courts &middot; fair rotation</div>
+    </div>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('players')">Players</button>
+    <button class="tab-btn" onclick="switchTab('matches')">Matches</button>
+  </div>
+
+  <!-- ── PLAYERS TAB ── -->
+  <div id="tab-players">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-playing">0</div><div class="stat-lbl">Playing</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-courts">—</div><div class="stat-lbl">Courts</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-avg">—</div><div class="stat-lbl">Avg skill</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Add player</div>
+      <div class="add-row">
+        <input id="new-name" type="text" placeholder="Player name" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" />
+        <select id="new-skill">
+          <option value="1">1 — Beginner</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4 — Average</option>
+          <option value="5" selected>5</option>
+          <option value="6">6</option>
+          <option value="7">7 — Good</option>
+          <option value="8">8</option>
+          <option value="9">9 — Pro</option>
+          <option value="10">10 — Expert</option>
+        </select>
+        <button class="btn-primary" onclick="addPlayer()">+ Add</button>
+      </div>
+    </div>
+
+    <!-- Playing section -->
+    <div class="section-header">
+      <span class="section-label">Playing today</span>
+      <span class="section-count active" id="count-playing">0</span>
+    </div>
+    <div id="list-playing"></div>
+    <div id="empty-playing" class="empty-state">No active players yet.</div>
+
+    <!-- Generate shortcut -->
+    <div id="gen-shortcut-wrap" style="margin:20px 0 4px;">
+      <button id="gen-shortcut-btn" onclick="goGenerate()"
+        style="width:100%;padding:14px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;cursor:pointer;transition:opacity 0.2s;">
+        Generate matches
+      </button>
+      <div id="gen-shortcut-hint" style="text-align:center;font-size:12px;color:var(--text-tertiary);margin-top:8px;">Add at least 4 playing players to generate</div>
+    </div>
+
+    <!-- Absent section -->
+    <div id="absent-section" style="display:none;">
+      <div class="section-divider"></div>
+      <div class="section-header">
+        <span class="section-label">Absent</span>
+        <span class="section-count" id="count-absent">0</span>
+      </div>
+      <div id="list-absent"></div>
+    </div>
+  </div>
+
+  <!-- ── MATCHES TAB ── -->
+  <div id="tab-matches" style="display:none;">
+    <div id="min-players-notice" class="notice">You need at least 4 playing players to generate matches.</div>
+    <div class="gen-controls">
+      <label for="match-count">Rounds</label>
+      <input type="number" id="match-count" class="count-input" value="4" min="1" max="30" />
+      <div class="action-row">
+        <button class="btn-primary" onclick="generateMatches()">Generate</button>
+        <button class="btn-secondary" id="regen-btn" style="display:none;" onclick="generateMatches()">Reshuffle</button>
+        <button class="btn-pdf"     id="pdf-btn"   style="display:none;" onclick="exportPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Save as PDF
+        </button>
+        <button class="btn-danger"  id="clear-btn" style="display:none;" onclick="clearMatches()">Delete list</button>
+      </div>
+    </div>
+    <div id="courts-info-bar" class="courts-info-bar" style="display:none;"></div>
+    <div id="saved-banner" class="saved-banner" style="display:none;"></div>
+    <div id="matches-out"></div>
+    <div id="no-matches-msg" class="empty-state" style="display:none;">No match list yet. Add players, then tap Generate.</div>
+  </div>
+
+</div><!-- /container -->
+<script>
+/* ═══════════════════════════════════════════════════
+   IndexedDB  (stores: 'players', 'matches')
+═══════════════════════════════════════════════════ */
+var DB_NAME = 'badminton-v1';
+var db = null;
+
+function openDB(cb) {
+  var req = indexedDB.open(DB_NAME, 1);
+  req.onupgradeneeded = function(e) {
+    var d = e.target.result;
+    if (!d.objectStoreNames.contains('players'))
+      d.createObjectStore('players', {keyPath:'id', autoIncrement:true});
+    if (!d.objectStoreNames.contains('matches'))
+      d.createObjectStore('matches', {keyPath:'id'});
+  };
+  req.onsuccess = function(e) { db = e.target.result; cb(); };
+  req.onerror   = function()  { cb(); }; // graceful fallback
+}
+
+function txRW(store) { return db.transaction(store,'readwrite').objectStore(store); }
+function txRO(store) { return db.transaction(store,'readonly').objectStore(store); }
+
+function dbGetAll(store, cb) {
+  if (!db) return cb([]);
+  var req = txRO(store).getAll();
+  req.onsuccess = function(){ cb(req.result||[]); };
+  req.onerror   = function(){ cb([]); };
+}
+function dbPut(store, obj, cb) {
+  if (!db) return cb&&cb(null);
+  var req = txRW(store).put(obj);
+  req.onsuccess = function(){ cb&&cb(req.result); };
+}
+function dbDelete(store, key, cb) {
+  if (!db) return cb&&cb();
+  var tx = db.transaction(store,'readwrite');
+  tx.objectStore(store).delete(key);
+  tx.oncomplete = function(){ cb&&cb(); };
+}
+function dbClear(store, cb) {
+  if (!db) return cb&&cb();
+  var tx = db.transaction(store,'readwrite');
+  tx.objectStore(store).clear();
+  tx.oncomplete = function(){ cb&&cb(); };
+}
+
+/* ═══════════════════════════════════════════════════
+   App state
+═══════════════════════════════════════════════════ */
+var players       = [];   // [{id, name, skill, absent}]
+var savedMatchHTML= '';
+var savedMatchMeta= null; // {date, players, rounds, courts, infoHTML}
+
+var palette = [
+  {bg:'#E6F1FB',fg:'#0C447C'},{bg:'#EAF3DE',fg:'#27500A'},
+  {bg:'#EEEDFE',fg:'#3C3489'},{bg:'#FAEEDA',fg:'#633806'},
+  {bg:'#FAECE7',fg:'#712B13'},{bg:'#E1F5EE',fg:'#085041'},
+  {bg:'#FBEAF0',fg:'#72243E'},{bg:'#F1EFE8',fg:'#444441'},
+  {bg:'#B5D4F4',fg:'#042C53'},{bg:'#C0DD97',fg:'#173404'}
+];
+function col(i)    { return palette[i % palette.length]; }
+function ini(n)    { var p=n.trim().split(/\s+/); return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():n.slice(0,2).toUpperCase(); }
+function sl(s)     { if(s<=3)return{t:'Beginner',bg:'#EAF3DE',fg:'#27500A'}; if(s<=6)return{t:'Average',bg:'#FAEEDA',fg:'#633806'}; if(s<=8)return{t:'Good',bg:'#E6F1FB',fg:'#0C447C'}; return{t:'Pro',bg:'#EEEDFE',fg:'#3C3489'}; }
+function esc(s)    { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function playing() { return players.filter(function(p){return !p.absent;}); }
+
+/* ═══════════════════════════════════════════════════
+   Render players
+═══════════════════════════════════════════════════ */
+function updateGenBtn() {
+  var pp = playing();
+  var btn  = document.getElementById('gen-shortcut-btn');
+  var hint = document.getElementById('gen-shortcut-hint');
+  if (!btn) return;
+  var enough = pp.length >= 4;
+  btn.style.opacity       = enough ? '1'    : '0.35';
+  btn.style.pointerEvents = enough ? 'auto' : 'none';
+  hint.style.display      = enough ? 'none' : 'block';
+}
+
+function goGenerate() {
+  switchTab('matches', true);
+  generateMatches();
+}
+
+function updateStats() {
+  var pp = playing();
+  document.getElementById('s-total').textContent   = players.length;
+  document.getElementById('s-playing').textContent = pp.length;
+  document.getElementById('s-courts').textContent  = pp.length<4 ? '—' : Math.floor(pp.length/4);
+  if (!pp.length) { document.getElementById('s-avg').textContent='—'; return; }
+  var avg = pp.reduce(function(a,p){return a+p.skill;},0)/pp.length;
+  document.getElementById('s-avg').textContent = avg.toFixed(1);
+}
+
+function playerRowHTML(p, gIdx) {
+  var c=col(gIdx), lab=sl(p.skill);
+  var tog = p.absent
+    ? '<button class="btn-toggle to-playing" onclick="toggleAbsent('+p.id+')">&#x2191; Playing</button>'
+    : '<button class="btn-toggle to-absent"  onclick="toggleAbsent('+p.id+')">&#x2193; Absent</button>';
+  return '<div class="player-row'+(p.absent?' absent':'')+'">'+
+    '<div class="avatar" style="background:'+c.bg+';color:'+c.fg+'">'+ini(p.name)+'</div>'+
+    '<span class="player-name">'+esc(p.name)+'</span>'+
+    '<span class="skill-badge" style="background:'+lab.bg+';color:'+lab.fg+'">'+lab.t+'</span>'+
+    '<span class="skill-num">'+p.skill+'</span>'+
+    tog+
+    '<button class="btn-remove" onclick="removePlayer('+p.id+')" aria-label="Remove">&#xd7;</button>'+
+  '</div>';
+}
+
+function renderPlayers() {
+  var pp = players.filter(function(p){return !p.absent;});
+  var ap = players.filter(function(p){return  p.absent;});
+
+  // Playing list
+  document.getElementById('count-playing').textContent = pp.length;
+  var lpEl = document.getElementById('list-playing');
+  var epEl = document.getElementById('empty-playing');
+  if (!pp.length) {
+    lpEl.innerHTML=''; epEl.style.display='block';
+  } else {
+    epEl.style.display='none';
+    lpEl.innerHTML = pp.map(function(p){ return playerRowHTML(p, players.indexOf(p)); }).join('');
+  }
+
+  // Absent list
+  var abSec = document.getElementById('absent-section');
+  if (!ap.length) {
+    abSec.style.display='none';
+  } else {
+    abSec.style.display='block';
+    document.getElementById('count-absent').textContent = ap.length;
+    document.getElementById('list-absent').innerHTML = ap.map(function(p){ return playerRowHTML(p, players.indexOf(p)); }).join('');
+  }
+
+  updateStats();
+  updateGenBtn();
+}
+
+/* ═══════════════════════════════════════════════════
+   Player actions
+═══════════════════════════════════════════════════ */
+function addPlayer() {
+  var el = document.getElementById('new-name');
+  var name = el.value.trim();
+  if (!name) { el.focus(); return; }
+  var obj = {name:name, skill:parseInt(document.getElementById('new-skill').value), absent:false};
+  dbPut('players', obj, function(newId){
+    obj.id = newId;
+    players.push(obj);
+    renderPlayers();
+    el.value=''; el.focus();
+  });
+}
+
+function removePlayer(id) {
+  dbDelete('players', id, function(){
+    players = players.filter(function(p){return p.id!==id;});
+    renderPlayers();
+  });
+}
+
+function toggleAbsent(id) {
+  var p = players.find(function(x){return x.id===id;});
+  if (!p) return;
+  p.absent = !p.absent;
+  dbPut('players', p, function(){ renderPlayers(); });
+}
+
+document.getElementById('new-name').addEventListener('keydown', function(e){ if(e.key==='Enter') addPlayer(); });
+
+/* ═══════════════════════════════════════════════════
+   Tab switching
+═══════════════════════════════════════════════════ */
+function switchTab(t, skipRestore) {
+  document.getElementById('tab-players').style.display = t==='players'?'block':'none';
+  document.getElementById('tab-matches').style.display = t==='matches'?'block':'none';
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){
+    b.classList.toggle('active', (t==='players'&&i===0)||(t==='matches'&&i===1));
+  });
+  if (t==='matches') {
+    document.getElementById('min-players-notice').style.display = playing().length<4?'block':'none';
+    if (!skipRestore) restoreMatchesUI();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Match generation
+═══════════════════════════════════════════════════ */
+function shuffle(arr) {
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+
+function findBestPairing(pool) {
+  var best=null,bestDiff=9999,limit=Math.min(pool.length,8),sub=pool.slice(0,limit);
+  outer:for(var a=0;a<limit-3;a++)
+    for(var b=a+1;b<limit-2;b++)
+      for(var c=b+1;c<limit-1;c++)
+        for(var d=c+1;d<limit;d++){
+          var combos=[[[sub[a],sub[b]],[sub[c],sub[d]]],[[sub[a],sub[c]],[sub[b],sub[d]]],[[sub[a],sub[d]],[sub[b],sub[c]]]];
+          for(var k=0;k<3;k++){
+            var diff=Math.abs((combos[k][0][0].skill+combos[k][0][1].skill)-(combos[k][1][0].skill+combos[k][1][1].skill));
+            if(diff<bestDiff){bestDiff=diff;best=combos[k];}
+            if(bestDiff===0) break outer;
+          }
+        }
+  return best||[[sub[0],sub[1]],[sub[2],sub[3]]];
+}
+
+function assignCourts(active, courts) {
+  var buckets=[];
+  for(var c=0;c<courts;c++) buckets.push([]);
+  var dir=1,idx=0;
+  for(var i=0;i<active.length;i++){
+    buckets[idx].push(active[i]); idx+=dir;
+    if(idx>=courts){idx=courts-1;dir=-1;} else if(idx<0){idx=0;dir=1;}
+  }
+  return buckets.map(function(b){return findBestPairing(shuffle(b));});
+}
+
+function teamColHTML(team) {
+  var i0=players.indexOf(team[0]), i1=players.indexOf(team[1]);
+  return '<div class="team-col">'+tpHTML(team[0],col(i0<0?0:i0))+tpHTML(team[1],col(i1<0?0:i1))+
+    '<div class="team-footer"><span>Combined</span><span class="team-total-val">'+(team[0].skill+team[1].skill)+'/20</span></div></div>';
+}
+function tpHTML(p,c) {
+  return '<div class="team-player"><div class="tp-avatar" style="background:'+c.bg+';color:'+c.fg+'">'+ini(p.name)+'</div><div class="tp-name">'+esc(p.name)+'</div></div>';
+}
+
+function generateMatches() {
+  var pp=playing();
+  var notice=document.getElementById('min-players-notice');
+  if (pp.length<4){ notice.style.display='block'; return; }
+  notice.style.display='none';
+
+  var courts=Math.floor(pp.length/4);
+  var numRounds=Math.max(1,Math.min(30,parseInt(document.getElementById('match-count').value)||4));
+  var sittingCount=pp.length-(courts*4);
+
+  var infoHTML=
+    '<span><strong>'+courts+'</strong> court'+(courts>1?'s':'')+' at once</span>'+
+    '<span class="sep">&middot;</span>'+
+    '<span><strong>'+(courts*4)+'</strong> players per round</span>'+
+    (sittingCount>0
+      ?'<span class="sep">&middot;</span><span><strong>'+sittingCount+'</strong> sit out per round</span>'
+      :'<span class="sep">&middot;</span><span>Everyone plays every round</span>');
+
+  // Fair sit-out queue
+  var sitQ=[];
+  function pickSitters(n){
+    var chosen=[];
+    while(chosen.length<n){ if(!sitQ.length) sitQ=shuffle(pp.slice()); chosen.push(sitQ.shift()); }
+    return chosen;
+  }
+
+  var html=''; var matchNo=1;
+  for(var r=0;r<numRounds;r++){
+    var sitting=sittingCount>0?pickSitters(sittingCount):[];
+    var active=pp.filter(function(p){return sitting.indexOf(p)<0;});
+    active.sort(function(a,b){return b.skill-a.skill;});
+    var matches=assignCourts(active,courts);
+
+    html+='<div class="round-block"><div class="round-header">'+
+      '<span class="round-label">Round '+(r+1)+'</span>'+
+      '<span class="round-courts-badge">'+courts+' court'+(courts>1?'s':'')+' simultaneous</span>'+
+      (sitting.length?'<span class="round-sitting-badge">'+sitting.length+' sitting out</span>':'')+
+      '<div class="round-divider"></div></div>'+
+      '<div class="courts-grid courts-'+Math.min(courts,3)+'">';
+
+    for(var c=0;c<matches.length;c++){
+      var pair=matches[c],t1=pair[0],t2=pair[1];
+      var sum1=t1[0].skill+t1[1].skill, sum2=t2[0].skill+t2[1].skill;
+      var diff=Math.abs(sum1-sum2);
+      var bal=Math.max(0,Math.round((1-diff/14)*100));
+      var tag=diff===0?'<span class="tag tag-perfect">Balanced</span>':diff<=1?'<span class="tag tag-great">Near perfect</span>':diff<=2?'<span class="tag tag-ok">Close</span>':'';
+      html+='<div class="match-card">'+
+        '<div class="match-header"><span class="match-num">Match '+matchNo+' &middot; Court '+(c+1)+'</span>'+tag+'</div>'+
+        '<div class="vs-row">'+teamColHTML(t1)+'<div class="vs-divider">vs</div>'+teamColHTML(t2)+'</div>'+
+        '<div class="balance-section"><div class="balance-bar"><div class="balance-fill" style="width:'+bal+'%"></div></div>'+
+        '<div class="balance-labels"><span>Balance</span><span class="balance-pct">'+bal+'%</span></div></div></div>';
+      matchNo++;
+    }
+    html+='</div>';
+
+    if(sitting.length){
+      html+='<div class="sitting-out"><span class="sitting-label">Sitting out:</span><div class="sitting-players">';
+      sitting.forEach(function(p){
+        var ci=players.indexOf(p),co=col(ci<0?0:ci),lab=sl(p.skill);
+        html+='<div class="sitting-chip"><div class="sitting-av" style="background:'+co.bg+';color:'+co.fg+'">'+ini(p.name)+'</div>'+
+          '<span class="sitting-nm">'+esc(p.name)+' <span style="color:'+lab.fg+'">'+p.skill+'</span></span></div>';
+      });
+      html+='</div></div>';
+    }
+    html+='</div>';
+  }
+
+  // Render
+  document.getElementById('matches-out').innerHTML=html;
+  document.getElementById('courts-info-bar').style.display='flex';
+  document.getElementById('courts-info-bar').innerHTML=infoHTML;
+  document.getElementById('regen-btn').style.display='inline-block';
+  document.getElementById('pdf-btn').style.display='inline-flex';
+  document.getElementById('clear-btn').style.display='inline-block';
+  document.getElementById('no-matches-msg').style.display='none';
+
+  // Save to DB
+  var now=new Date();
+  var meta={
+    date: now.toLocaleDateString(undefined,{weekday:'short',year:'numeric',month:'short',day:'numeric'}),
+    players: pp.length, rounds: numRounds, courts: courts, infoHTML: infoHTML
+  };
+  dbPut('matches',{id:1, html:html, meta:meta},function(){
+    savedMatchHTML=html; savedMatchMeta=meta;
+    renderSavedBanner();
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   Restore saved matches on tab switch / boot
+═══════════════════════════════════════════════════ */
+function restoreMatchesUI() {
+  if (!savedMatchHTML) {
+    document.getElementById('no-matches-msg').style.display='block';
+    document.getElementById('matches-out').innerHTML='';
+    document.getElementById('courts-info-bar').style.display='none';
+    document.getElementById('saved-banner').style.display='none';
+    document.getElementById('regen-btn').style.display='none';
+    document.getElementById('pdf-btn').style.display='none';
+    document.getElementById('clear-btn').style.display='none';
+    return;
+  }
+  document.getElementById('no-matches-msg').style.display='none';
+  document.getElementById('matches-out').innerHTML=savedMatchHTML;
+  if (savedMatchMeta) {
+    document.getElementById('courts-info-bar').style.display='flex';
+    document.getElementById('courts-info-bar').innerHTML=savedMatchMeta.infoHTML;
+  }
+  document.getElementById('regen-btn').style.display='inline-block';
+  document.getElementById('pdf-btn').style.display='inline-flex';
+  document.getElementById('clear-btn').style.display='inline-block';
+  renderSavedBanner();
+}
+
+function renderSavedBanner() {
+  if (!savedMatchMeta) return;
+  var m=savedMatchMeta;
+  document.getElementById('saved-banner').style.display='block';
+  document.getElementById('saved-banner').innerHTML=
+    'Saved on <strong>'+esc(m.date)+'</strong> &nbsp;&middot;&nbsp; '+
+    m.players+' players &nbsp;&middot;&nbsp; '+
+    m.rounds+' round'+(m.rounds>1?'s':'')+' &nbsp;&middot;&nbsp; '+
+    m.courts+' court'+(m.courts>1?'s':'');
+}
+
+function clearMatches() {
+  if (!confirm('Delete the saved match list?')) return;
+  dbClear('matches',function(){
+    savedMatchHTML=''; savedMatchMeta=null;
+    restoreMatchesUI();
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   PDF export
+═══════════════════════════════════════════════════ */
+function exportPDF() {
+  if (!savedMatchMeta) return;
+  var m=savedMatchMeta;
+  document.getElementById('pdf-title').textContent='Badminton Matches \u2014 '+m.date;
+  document.getElementById('pdf-subtitle').textContent=
+    m.players+' players \u00b7 '+m.rounds+' round'+(m.rounds>1?'s':'')+
+    ' \u00b7 '+m.courts+' court'+(m.courts>1?'s':'')+' simultaneous';
+  window.print();
+}
+
+/* ═══════════════════════════════════════════════════
+   Boot: load everything from IndexedDB
+═══════════════════════════════════════════════════ */
+openDB(function(){
+  dbGetAll('players',function(rows){
+    players=rows;
+    renderPlayers();
+    updateGenBtn();
+    dbGetAll('matches',function(rows){
+      if (rows.length){
+        savedMatchHTML=rows[0].html;
+        savedMatchMeta=rows[0].meta;
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
