@@ -530,125 +530,208 @@ function shuffle(arr) {
   return a;
 }
 
-/*
- * partnerCounts[idA][idB] = number of times A and B have been on the same team.
- * Persists across all rounds in one generation run so the algorithm
- * avoids repeat partnerships for as long as possible.
- */
-var partnerCounts = {};
+/* ═══════════════════════════════════════════════════
+   Match generation algorithm
+   ─────────────────────────────────────────────────
+   State tracked across all rounds in one run:
+     partnerCounts[a][b]  — times a & b were on the same team
+     opponentCounts[a][b] — times a & b faced each other
+     lastPartnerKeys      — set of partner-pair keys from the PREVIOUS round
+   ─────────────────────────────────────────────────
+   Rules (in priority order):
+     HARD BANS (return Infinity score):
+       1. Top-2 ranked players partnered together
+       2. Bottom-2 ranked players partnered together
+       3. Same partnership repeated consecutively (back-to-back rounds)
+       4. Partnership used ≥ 2 times across all rounds
+     SOFT PENALTIES (additive score):
+       A. Skill imbalance × 10        (primary)
+       B. Partner repeat count × 8    (secondary — drives rotation)
+       C. Opponent repeat sum × 1     (tertiary — spreads who faces who)
+═══════════════════════════════════════════════════ */
 
-function getPartnerCount(a, b) {
-  return (partnerCounts[a.id] && partnerCounts[a.id][b.id]) || 0;
+var partnerCounts  = {};
+var opponentCounts = {};
+var lastPartnerKeys = {};
+var courtOffset    = 0;
+
+function pairKey(a, b) {
+  return a.id < b.id ? a.id + '-' + b.id : b.id + '-' + a.id;
 }
+function getPC(a, b) { return (partnerCounts[a.id]  && partnerCounts[a.id][b.id])  || 0; }
+function getOC(a, b) { return (opponentCounts[a.id] && opponentCounts[a.id][b.id]) || 0; }
 
-function recordPartners(team1, team2) {
-  function link(a, b) {
-    if (!partnerCounts[a.id]) partnerCounts[a.id] = {};
-    if (!partnerCounts[b.id]) partnerCounts[b.id] = {};
+function recordMatch(t1, t2) {
+  function lp(a, b) {
+    if (!partnerCounts[a.id])  partnerCounts[a.id]  = {};
+    if (!partnerCounts[b.id])  partnerCounts[b.id]  = {};
     partnerCounts[a.id][b.id] = (partnerCounts[a.id][b.id] || 0) + 1;
     partnerCounts[b.id][a.id] = (partnerCounts[b.id][a.id] || 0) + 1;
   }
-  link(team1[0], team1[1]);
-  link(team2[0], team2[1]);
+  function lo(a, b) {
+    if (!opponentCounts[a.id]) opponentCounts[a.id] = {};
+    if (!opponentCounts[b.id]) opponentCounts[b.id] = {};
+    opponentCounts[a.id][b.id] = (opponentCounts[a.id][b.id] || 0) + 1;
+    opponentCounts[b.id][a.id] = (opponentCounts[b.id][a.id] || 0) + 1;
+  }
+  lp(t1[0], t1[1]);
+  lp(t2[0], t2[1]);
+  lo(t1[0], t2[0]); lo(t1[0], t2[1]);
+  lo(t1[1], t2[0]); lo(t1[1], t2[1]);
 }
 
 /*
- * findBestPairing — scores every possible way to split 4 players into 2 teams.
- *
- * Score = skillDiff + partnerPenalty
- *   skillDiff:      absolute difference between the two teams' combined skill totals.
- *                   Primary goal: teams should be equal in total skill.
- *   partnerPenalty: for each team, add (times-paired-before * REPEAT_WEIGHT).
- *                   Secondary goal: players should rotate partners across rounds.
- *
- * REPEAT_WEIGHT of 2 means a fresh partnership is preferred unless it costs
- * more than 2 skill points of imbalance — keeping balance as the top priority.
+ * scoreTeamPair: score a proposed [team1, team2] split.
+ * relaxLevel controls which hard bans are active:
+ *   0 = all 4 rules enforced
+ *   1 = allow consecutive repeat (relax rule 3 only)
+ *   2 = also allow partner count >= 2 (relax rules 3 & 4)
+ *   3 = skill diff only — last resort
+ * Rules 1 & 2 (top/bot bans) are NEVER relaxed.
  */
-function findBestPairing(pool) {
-  var REPEAT_WEIGHT = 2;
-  var best = null, bestScore = 99999;
-  var limit = Math.min(pool.length, 8), sub = pool.slice(0, limit);
-  outer:for (var a = 0; a < limit-3; a++)
-    for (var b = a+1; b < limit-2; b++)
-      for (var c = b+1; c < limit-1; c++)
-        for (var d = c+1; d < limit; d++) {
-          var combos = [
-            [[sub[a],sub[b]], [sub[c],sub[d]]],
-            [[sub[a],sub[c]], [sub[b],sub[d]]],
-            [[sub[a],sub[d]], [sub[b],sub[c]]]
-          ];
-          for (var k = 0; k < 3; k++) {
-            var t1 = combos[k][0], t2 = combos[k][1];
-            var skillDiff = Math.abs(
-              (t1[0].skill + t1[1].skill) - (t2[0].skill + t2[1].skill)
-            );
-            var partnerPenalty =
-              getPartnerCount(t1[0], t1[1]) * REPEAT_WEIGHT +
-              getPartnerCount(t2[0], t2[1]) * REPEAT_WEIGHT;
-            var score = skillDiff + partnerPenalty;
-            if (score < bestScore) { bestScore = score; best = combos[k]; }
-            if (bestScore === 0) break outer;
-          }
-        }
-  return best || [[sub[0],sub[1]], [sub[2],sub[3]]];
+/*
+ * scoreMatch: score one 2v2 match.
+ * relaxLevel controls which hard bans are active:
+ *   0 = all 4 rules enforced
+ *   1 = allow consecutive repeat (relax rule 3)
+ *   2 = also allow partner count >= 2 (relax rules 3 & 4)
+ *   3 = skill diff only (last resort)
+ * Rules 1 & 2 (top-2 / bottom-2 bans) are NEVER relaxed.
+ */
+function scoreMatch(t1, t2, top2, bot2, relax) {
+  if (top2[t1[0].id] && top2[t1[1].id]) return Infinity;
+  if (top2[t2[0].id] && top2[t2[1].id]) return Infinity;
+  if (bot2[t1[0].id] && bot2[t1[1].id]) return Infinity;
+  if (bot2[t2[0].id] && bot2[t2[1].id]) return Infinity;
+  if (relax < 1) {
+    if (lastPartnerKeys[pairKey(t1[0],t1[1])]) return Infinity;
+    if (lastPartnerKeys[pairKey(t2[0],t2[1])]) return Infinity;
+  }
+  if (relax < 2) {
+    if (getPC(t1[0],t1[1]) >= 2) return Infinity;
+    if (getPC(t2[0],t2[1]) >= 2) return Infinity;
+  }
+  var sd = Math.abs((t1[0].skill+t1[1].skill) - (t2[0].skill+t2[1].skill));
+  if (relax >= 3) return sd;
+  return sd * 10 +
+    (getPC(t1[0],t1[1]) + getPC(t2[0],t2[1])) * 8 +
+    (getOC(t1[0],t2[0]) + getOC(t1[0],t2[1]) +
+     getOC(t1[1],t2[0]) + getOC(t1[1],t2[1]));
+}
+
+/* Best pairing among the 3 splits of a 4-player group, at given relax level. */
+function scoreCourt(group, top2, bot2, relax) {
+  var s = group;
+  var combos = [
+    [[s[0],s[1]],[s[2],s[3]]],
+    [[s[0],s[2]],[s[1],s[3]]],
+    [[s[0],s[3]],[s[1],s[2]]]
+  ];
+  var best = null, bestSc = Infinity;
+  for (var k = 0; k < 3; k++) {
+    var sc = scoreMatch(combos[k][0], combos[k][1], top2, bot2, relax);
+    if (sc < bestSc) { bestSc = sc; best = combos[k]; }
+  }
+  return {pair: best, score: bestSc};
+}
+
+function avgSkill(group) {
+  return group.reduce(function(s,p){return s+p.skill;},0) / group.length;
+}
+
+/* Generate all C(n,k) combinations of arr. */
+function combinations(arr, k) {
+  var result = [];
+  function pick(start, chosen) {
+    if (chosen.length === k) { result.push(chosen.slice()); return; }
+    for (var i = start; i < arr.length; i++) {
+      chosen.push(arr[i]); pick(i+1, chosen); chosen.pop();
+    }
+  }
+  pick(0, []);
+  return result;
 }
 
 /*
- * assignCourts — splits active players into per-court buckets, one match per bucket.
+ * assignCourts — joint global search
+ * ─────────────────────────────────────────────────
+ * Rather than pre-splitting players into fixed court buckets (which gives
+ * only 3 pairing options per court and quickly exhausts valid combinations),
+ * this function jointly searches all possible court group assignments at once.
  *
- * Rule 3: With multiple courts, higher-skilled players go to "upper" courts and
- * lower-skilled to "lower" courts, creating naturally tiered matches.
- * Within each tier the players are shuffled so pairings still rotate freely —
- * the tier boundary only determines which group of 4 ends up on which court.
+ * For 2 courts (8 players): C(8,4)=70 ways to split into two groups × 3
+ * pairings per group = 630 joint combinations — far more solution space.
+ * For 3 courts (12 players): ~5775 joint combinations.
  *
- * With a single court, everyone is simply shuffled together.
+ * At each relax level (0→3) we try all joint assignments and pick the one
+ * with the lowest combined score. This guarantees all hard rules are
+ * satisfied whenever mathematically possible.
+ *
+ * Skill tiering: a tier penalty is added when the court-1 group has lower
+ * average skill than court-2, so the search naturally places higher-skill
+ * players on court 1 without making it a hard constraint.
  */
-/*
- * courtOffset: incremented each round so players rotate between courts.
- * Reset to 0 at the start of each generateMatches() call.
- *
- * How tiered cross-court shuffling works:
- *   1. Sort all active players by skill descending.
- *   2. Each round, rotate the sorted list by courtOffset positions so
- *      boundary players drift between adjacent courts over time.
- *   3. Split the rotated list into groups of 4: group 0 → court 1 (highest),
- *      group 1 → court 2, etc. Courts stay skill-tiered on average but the
- *      exact players on each court change every round.
- *   4. Within each group, shuffle before pairing so findBestPairing can
- *      rotate partners freely.
- *
- * The offset step size is 1 so only 1-2 players swap between adjacent courts
- * each round — enough to mix without making courts completely random.
- */
-var courtOffset = 0;
+function assignCourts(active, courts, top2, bot2) {
+  var sorted = active.slice().sort(function(a,b){return b.skill-a.skill;});
+  var maxOff = Math.max(courts*2, 1);
+  var off = courtOffset % maxOff;
+  courtOffset++;
+  var pool = sorted.slice(off).concat(sorted.slice(0, off));
+  pool = pool.slice(0, courts*4);
 
-function assignCourts(active, courts) {
-  var n = active.length;
+  var TIER_W = 5; // penalty per skill point court-1 avg is below court-2 avg
 
-  // Sort by skill descending
-  var sorted = active.slice().sort(function(a, b) { return b.skill - a.skill; });
-
-  // Rotate by courtOffset but cap at (courts) positions so only boundary
-  // players swap between adjacent courts each round — enough to mix without
-  // making the court skill tiers completely random.
-  var maxOffset = courts * 2; // at most 2 players swap per court boundary per cycle
-  var offset = courtOffset % maxOffset;
-  var rotated = sorted.slice(offset).concat(sorted.slice(0, offset));
-
-  // Take only the players needed (sitting-out players are already excluded)
-  var needed = courts * 4;
-  var pool = rotated.slice(0, needed);
-
-  // Split into per-court groups of 4 and shuffle within each group
-  var buckets = [];
-  for (var c = 0; c < courts; c++) {
-    buckets.push(shuffle(pool.slice(c * 4, c * 4 + 4)));
+  if (courts === 1) {
+    for (var relax=0; relax<=3; relax++) {
+      var r = scoreCourt(pool, top2, bot2, relax);
+      if (r.pair && r.score < Infinity) return [r.pair];
+    }
+    return [[[pool[0],pool[1]],[pool[2],pool[3]]]];
   }
 
-  // Advance offset by 1 for the next round
-  courtOffset += 1;
+  for (var relax=0; relax<=3; relax++) {
+    var bestTotal = Infinity, bestResult = null;
 
-  return buckets.map(function(b) { return findBestPairing(b); });
+    if (courts === 2) {
+      var c4 = combinations(pool, 4);
+      for (var ci=0; ci<c4.length; ci++) {
+        var g1=c4[ci], g1map={};
+        g1.forEach(function(p){g1map[p.id]=true;});
+        var g2=pool.filter(function(p){return !g1map[p.id];});
+        var r1=scoreCourt(g1,top2,bot2,relax);
+        var r2=scoreCourt(g2,top2,bot2,relax);
+        if (!r1.pair||!r2.pair||r1.score===Infinity||r2.score===Infinity) continue;
+        var tier=Math.max(0,avgSkill(g2)-avgSkill(g1))*TIER_W;
+        var tot=r1.score+r2.score+tier;
+        if(tot<bestTotal){bestTotal=tot;bestResult=[r1.pair,r2.pair];}
+      }
+    } else if (courts === 3) {
+      var c4a=combinations(pool,4);
+      for(var ci=0;ci<c4a.length;ci++){
+        var g1=c4a[ci],g1map={};g1.forEach(function(p){g1map[p.id]=true;});
+        var rest=pool.filter(function(p){return !g1map[p.id];});
+        var c4b=combinations(rest,4);
+        for(var cj=0;cj<c4b.length;cj++){
+          var g2=c4b[cj],g2map={};g2.forEach(function(p){g2map[p.id]=true;});
+          var g3=rest.filter(function(p){return !g2map[p.id];});
+          var r1=scoreCourt(g1,top2,bot2,relax);
+          var r2=scoreCourt(g2,top2,bot2,relax);
+          var r3=scoreCourt(g3,top2,bot2,relax);
+          if(!r1.pair||!r2.pair||!r3.pair||r1.score===Infinity||r2.score===Infinity||r3.score===Infinity)continue;
+          var tier=Math.max(0,avgSkill(g2)-avgSkill(g1))*TIER_W+Math.max(0,avgSkill(g3)-avgSkill(g2))*TIER_W;
+          var tot=r1.score+r2.score+r3.score+tier;
+          if(tot<bestTotal){bestTotal=tot;bestResult=[r1.pair,r2.pair,r3.pair];}
+        }
+      }
+    }
+
+    if (bestResult) return bestResult;
+  }
+
+  // Absolute safety fallback
+  var fb=[];
+  for(var c=0;c<courts;c++){var g=pool.slice(c*4,c*4+4);fb.push([[g[0],g[1]],[g[2],g[3]]]);}
+  return fb;
 }
 
 function teamColHTML(team) {
@@ -678,25 +761,67 @@ function generateMatches() {
       ?'<span class="sep">&middot;</span><span><strong>'+sittingCount+'</strong> sit out per round</span>'
       :'<span class="sep">&middot;</span><span>Everyone plays every round</span>');
 
-  // Reset history for this full generation run
-  partnerCounts = {};
-  courtOffset = 0;
+  // Reset all tracking state for this generation run
+  partnerCounts  = {};
+  opponentCounts = {};
+  lastPartnerKeys = {};
+  courtOffset    = 0;
 
-  // Fair sit-out queue
-  var sitQ=[];
-  function pickSitters(n){
-    var chosen=[];
-    while(chosen.length<n){ if(!sitQ.length) sitQ=shuffle(pp.slice()); chosen.push(sitQ.shift()); }
-    return chosen;
+  // Compute top-2 and bottom-2 from the full playing pool (by skill rank).
+  // These players may never be partnered together (hard ban).
+  var ppSorted = pp.slice().sort(function(a,b){ return b.skill-a.skill; });
+  var top2 = {}, bot2 = {};
+  if (ppSorted.length >= 2) {
+    top2[ppSorted[0].id] = true;
+    top2[ppSorted[1].id] = true;
+    bot2[ppSorted[ppSorted.length-1].id] = true;
+    bot2[ppSorted[ppSorted.length-2].id] = true;
+  }
+
+  /*
+   * Fair sit-out queue — pre-built upfront so no one sits out twice
+   * before everyone has had a turn, and no consecutive repeats.
+   */
+  var sitQueue = [];
+  if (sittingCount > 0) {
+    var totalSitSlots = numRounds * sittingCount;
+    while (sitQueue.length < totalSitSlots) {
+      var cycle = shuffle(pp.slice()).map(function(p){ return p.id; });
+      if (sitQueue.length > 0) {
+        var lastId = sitQueue[sitQueue.length - 1];
+        var attempts = 0;
+        while (cycle[0] === lastId && attempts < cycle.length) {
+          cycle.push(cycle.shift());
+          attempts++;
+        }
+      }
+      for (var qi = 0; qi < cycle.length; qi++) sitQueue.push(cycle[qi]);
+    }
+  }
+  var sitQueuePos = 0;
+  function pickSitters(n) {
+    var chosenIds = sitQueue.slice(sitQueuePos, sitQueuePos + n);
+    sitQueuePos += n;
+    return chosenIds.map(function(id){
+      return pp.find(function(p){ return p.id === id; });
+    }).filter(Boolean);
   }
 
   var html=''; var matchNo=1;
   for(var r=0;r<numRounds;r++){
     var sitting=sittingCount>0?pickSitters(sittingCount):[];
-    var active=pp.filter(function(p){return sitting.indexOf(p)<0;});
-    var matches=assignCourts(active,courts);
-    // Record all partnerships so future rounds avoid repeating them
-    matches.forEach(function(pair){ recordPartners(pair[0],pair[1]); });
+    var sittingIds=sitting.map(function(p){return p.id;});
+    var active=pp.filter(function(p){return sittingIds.indexOf(p.id)<0;});
+    var matches=assignCourts(active,courts,top2,bot2);
+
+    // Record matches and update lastPartnerKeys for next round's consecutive ban
+    var thisRoundKeys={};
+    matches.forEach(function(pair){
+      recordMatch(pair[0],pair[1]);
+      thisRoundKeys[pairKey(pair[0][0],pair[0][1])]=true;
+      thisRoundKeys[pairKey(pair[1][0],pair[1][1])]=true;
+    });
+    lastPartnerKeys = thisRoundKeys;
 
     html+='<div class="round-block"><div class="round-header">'+
       '<span class="round-label">Round '+(r+1)+'</span>'+
