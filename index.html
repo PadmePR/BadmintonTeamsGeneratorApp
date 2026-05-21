@@ -553,6 +553,7 @@ function shuffle(arr) {
 var partnerCounts  = {};
 var opponentCounts = {};
 var lastPartnerKeys = {};
+var matchHistory   = {}; // Rule B: tracks exact match repeats
 var courtOffset    = 0;
 
 function pairKey(a, b) {
@@ -578,54 +579,95 @@ function recordMatch(t1, t2) {
   lp(t2[0], t2[1]);
   lo(t1[0], t2[0]); lo(t1[0], t2[1]);
   lo(t1[1], t2[0]); lo(t1[1], t2[1]);
+  var mk = matchKey(t1, t2);
+  matchHistory[mk] = (matchHistory[mk] || 0) + 1;
 }
 
 /*
- * scoreTeamPair: score a proposed [team1, team2] split.
- * relaxLevel controls which hard bans are active:
- *   0 = all 4 rules enforced
- *   1 = allow consecutive repeat (relax rule 3 only)
- *   2 = also allow partner count >= 2 (relax rules 3 & 4)
- *   3 = skill diff only — last resort
- * Rules 1 & 2 (top/bot bans) are NEVER relaxed.
+ * matchKey: canonical key for a 2v2 match result, used for Rule B
+ * (detecting and penalising exact match repeats).
  */
+function matchKey(t1, t2) {
+  var ta = [t1[0].id, t1[1].id].sort(function(a,b){return a-b;});
+  var tb = [t2[0].id, t2[1].id].sort(function(a,b){return a-b;});
+  if (ta[0] > tb[0]) { var tmp=ta; ta=tb; tb=tmp; }
+  return ta.join('-') + '|' + tb.join('-');
+}
+
+/* Total times a & b have been in the same match (partner OR opponent). */
+function getCC(a, b) { return getPC(a,b) + getOC(a,b); }
+
 /*
- * scoreMatch: score one 2v2 match.
- * relaxLevel controls which hard bans are active:
- *   0 = all 4 rules enforced
- *   1 = allow consecutive repeat (relax rule 3)
- *   2 = also allow partner count >= 2 (relax rules 3 & 4)
- *   3 = skill diff only (last resort)
- * Rules 1 & 2 (top-2 / bottom-2 bans) are NEVER relaxed.
+ * scoreMatch — scores one proposed 2v2 match.
+ *
+ * relax levels (applied in order when no valid option exists):
+ *   0 = all rules enforced
+ *   1 = allow consecutive partner repeat
+ *   2 = allow partner used >= 2 times
+ *   3 = allow exact match repeat (Rule B: okay if no other choice)
+ *   4 = skill diff only — absolute last resort
+ *
+ * Top-2 and bottom-2 bans are NEVER relaxed (Rules 1 & 2).
+ *
+ * Soft scoring weights:
+ *   skill imbalance × 10        PRIMARY — balanced teams
+ *   partner repeat  × 8        rotate partnerships
+ *   opponent repeat × 1        spread who faces who
+ *   unseen pair     × -15      Rule D: reward introducing new meetings
+ *   already-met sum × +1       mild penalty for familiar pairings
+ *   match repeat    × 20       Rule B: strongly prefer fresh matches
  */
 function scoreMatch(t1, t2, top2, bot2, relax) {
+  // Hard bans — never relaxed
   if (top2[t1[0].id] && top2[t1[1].id]) return Infinity;
   if (top2[t2[0].id] && top2[t2[1].id]) return Infinity;
   if (bot2[t1[0].id] && bot2[t1[1].id]) return Infinity;
   if (bot2[t2[0].id] && bot2[t2[1].id]) return Infinity;
+  // Consecutive partner ban
   if (relax < 1) {
     if (lastPartnerKeys[pairKey(t1[0],t1[1])]) return Infinity;
     if (lastPartnerKeys[pairKey(t2[0],t2[1])]) return Infinity;
   }
+  // Partner >= 2 times ban
   if (relax < 2) {
     if (getPC(t1[0],t1[1]) >= 2) return Infinity;
     if (getPC(t2[0],t2[1]) >= 2) return Infinity;
   }
+  // Exact match repeat ban (Rule B)
+  if (relax < 3) {
+    if ((matchHistory[matchKey(t1,t2)] || 0) > 0) return Infinity;
+  }
+  // Last resort: skill only
+  if (relax >= 4) {
+    return Math.abs((t1[0].skill+t1[1].skill) - (t2[0].skill+t2[1].skill));
+  }
+
   var sd = Math.abs((t1[0].skill+t1[1].skill) - (t2[0].skill+t2[1].skill));
-  if (relax >= 3) return sd;
+
+  // Rule D: reward pairs that have never met (partner or opponent)
+  var contactScore = 0;
+  var all4 = [t1[0], t1[1], t2[0], t2[1]];
+  for (var i = 0; i < 4; i++) {
+    for (var j = i+1; j < 4; j++) {
+      contactScore += getCC(all4[i], all4[j]) === 0 ? -15 : getCC(all4[i], all4[j]);
+    }
+  }
+
   return sd * 10 +
     (getPC(t1[0],t1[1]) + getPC(t2[0],t2[1])) * 8 +
     (getOC(t1[0],t2[0]) + getOC(t1[0],t2[1]) +
-     getOC(t1[1],t2[0]) + getOC(t1[1],t2[1]));
+     getOC(t1[1],t2[0]) + getOC(t1[1],t2[1])) +
+    contactScore +
+    (matchHistory[matchKey(t1,t2)] || 0) * 20;
 }
 
-/* Best pairing among the 3 splits of a 4-player group, at given relax level. */
+/* Score all 3 splits of a 4-player group; return best pair and score. */
 function scoreCourt(group, top2, bot2, relax) {
   var s = group;
   var combos = [
-    [[s[0],s[1]],[s[2],s[3]]],
-    [[s[0],s[2]],[s[1],s[3]]],
-    [[s[0],s[3]],[s[1],s[2]]]
+    [[s[0],s[1]], [s[2],s[3]]],
+    [[s[0],s[2]], [s[1],s[3]]],
+    [[s[0],s[3]], [s[1],s[2]]]
   ];
   var best = null, bestSc = Infinity;
   for (var k = 0; k < 3; k++) {
@@ -639,7 +681,6 @@ function avgSkill(group) {
   return group.reduce(function(s,p){return s+p.skill;},0) / group.length;
 }
 
-/* Generate all C(n,k) combinations of arr. */
 function combinations(arr, k) {
   var result = [];
   function pick(start, chosen) {
@@ -652,87 +693,117 @@ function combinations(arr, k) {
   return result;
 }
 
+/* Joint search for 2 courts. highIds = set of player ids forced onto court 1 (Rule C), or null. */
+function searchCourts2(pool, top2, bot2, relax, highIds) {
+  var c4 = combinations(pool, 4);
+  var bestTotal = Infinity, bestResult = null;
+  for (var ci = 0; ci < c4.length; ci++) {
+    var g1 = c4[ci];
+    if (highIds) {
+      if (!g1.every(function(p){ return highIds[p.id]; })) continue;
+    }
+    var g1map = {};
+    g1.forEach(function(p){ g1map[p.id] = true; });
+    var g2 = pool.filter(function(p){ return !g1map[p.id]; });
+    var r1 = scoreCourt(g1, top2, bot2, relax);
+    var r2 = scoreCourt(g2, top2, bot2, relax);
+    if (!r1.pair || !r2.pair || r1.score === Infinity || r2.score === Infinity) continue;
+    var tier = Math.max(0, avgSkill(g2) - avgSkill(g1)) * 5;
+    var tot = r1.score + r2.score + tier;
+    if (tot < bestTotal) { bestTotal = tot; bestResult = [r1.pair, r2.pair]; }
+  }
+  return bestResult;
+}
+
+/* Joint search for 3 courts. */
+function searchCourts3(pool, top2, bot2, relax, highIds) {
+  var c4a = combinations(pool, 4);
+  var bestTotal = Infinity, bestResult = null;
+  for (var ci = 0; ci < c4a.length; ci++) {
+    var g1 = c4a[ci];
+    if (highIds) {
+      if (!g1.every(function(p){ return highIds[p.id]; })) continue;
+    }
+    var g1map = {};
+    g1.forEach(function(p){ g1map[p.id] = true; });
+    var rest = pool.filter(function(p){ return !g1map[p.id]; });
+    var c4b = combinations(rest, 4);
+    for (var cj = 0; cj < c4b.length; cj++) {
+      var g2 = c4b[cj], g2map = {};
+      g2.forEach(function(p){ g2map[p.id] = true; });
+      var g3 = rest.filter(function(p){ return !g2map[p.id]; });
+      var r1 = scoreCourt(g1, top2, bot2, relax);
+      var r2 = scoreCourt(g2, top2, bot2, relax);
+      var r3 = scoreCourt(g3, top2, bot2, relax);
+      if (!r1.pair||!r2.pair||!r3.pair||
+          r1.score===Infinity||r2.score===Infinity||r3.score===Infinity) continue;
+      var tier = Math.max(0, avgSkill(g2)-avgSkill(g1))*5 +
+                 Math.max(0, avgSkill(g3)-avgSkill(g2))*5;
+      var tot = r1.score + r2.score + r3.score + tier;
+      if (tot < bestTotal) { bestTotal = tot; bestResult = [r1.pair, r2.pair, r3.pair]; }
+    }
+  }
+  return bestResult;
+}
+
 /*
- * assignCourts — joint global search
+ * assignCourts — joint global search with all rules
  * ─────────────────────────────────────────────────
- * Rather than pre-splitting players into fixed court buckets (which gives
- * only 3 pairing options per court and quickly exhausts valid combinations),
- * this function jointly searches all possible court group assignments at once.
+ * Rule C (every-other-round high-skill court):
+ *   On odd rounds (index 1,3,5...), if >= 4 active players have skill
+ *   above the overall playing-pool average, force court 1 to use exactly
+ *   those top 4 above-average players. Falls back to unconstrained if
+ *   this produces no valid result at the current relax level.
  *
- * For 2 courts (8 players): C(8,4)=70 ways to split into two groups × 3
- * pairings per group = 630 joint combinations — far more solution space.
- * For 3 courts (12 players): ~5775 joint combinations.
- *
- * At each relax level (0→3) we try all joint assignments and pick the one
- * with the lowest combined score. This guarantees all hard rules are
- * satisfied whenever mathematically possible.
- *
- * Skill tiering: a tier penalty is added when the court-1 group has lower
- * average skill than court-2, so the search naturally places higher-skill
- * players on court 1 without making it a hard constraint.
+ * For each relax level (0→4):
+ *   1. Try with Rule C constraint (highIds) if applicable
+ *   2. If that fails, try without it (Rule C is a preference, not a hard ban)
+ *   3. If still fails, increment relax and retry
  */
-function assignCourts(active, courts, top2, bot2) {
-  var sorted = active.slice().sort(function(a,b){return b.skill-a.skill;});
+function assignCourts(active, courts, top2, bot2, allAvgSkill, forceHighCourt) {
+  var sorted = active.slice().sort(function(a,b){ return b.skill-a.skill; });
   var maxOff = Math.max(courts*2, 1);
   var off = courtOffset % maxOff;
   courtOffset++;
   var pool = sorted.slice(off).concat(sorted.slice(0, off));
   pool = pool.slice(0, courts*4);
 
-  var TIER_W = 5; // penalty per skill point court-1 avg is below court-2 avg
-
-  if (courts === 1) {
-    for (var relax=0; relax<=3; relax++) {
-      var r = scoreCourt(pool, top2, bot2, relax);
-      if (r.pair && r.score < Infinity) return [r.pair];
+  // Build highIds for Rule C
+  var highIds = null;
+  if (forceHighCourt && courts >= 2) {
+    var highPlayers = pool.filter(function(p){ return p.skill > allAvgSkill; });
+    if (highPlayers.length >= 4) {
+      highIds = {};
+      highPlayers.slice(0,4).forEach(function(p){ highIds[p.id] = true; });
     }
-    return [[[pool[0],pool[1]],[pool[2],pool[3]]]];
   }
 
-  for (var relax=0; relax<=3; relax++) {
-    var bestTotal = Infinity, bestResult = null;
+  for (var relax = 0; relax <= 4; relax++) {
+    var result = null;
 
-    if (courts === 2) {
-      var c4 = combinations(pool, 4);
-      for (var ci=0; ci<c4.length; ci++) {
-        var g1=c4[ci], g1map={};
-        g1.forEach(function(p){g1map[p.id]=true;});
-        var g2=pool.filter(function(p){return !g1map[p.id];});
-        var r1=scoreCourt(g1,top2,bot2,relax);
-        var r2=scoreCourt(g2,top2,bot2,relax);
-        if (!r1.pair||!r2.pair||r1.score===Infinity||r2.score===Infinity) continue;
-        var tier=Math.max(0,avgSkill(g2)-avgSkill(g1))*TIER_W;
-        var tot=r1.score+r2.score+tier;
-        if(tot<bestTotal){bestTotal=tot;bestResult=[r1.pair,r2.pair];}
-      }
+    if (courts === 1) {
+      var r = scoreCourt(pool, top2, bot2, relax);
+      if (r.pair && r.score < Infinity) result = [r.pair];
+    } else if (courts === 2) {
+      if (highIds) result = searchCourts2(pool, top2, bot2, relax, highIds);
+      if (!result)  result = searchCourts2(pool, top2, bot2, relax, null);
     } else if (courts === 3) {
-      var c4a=combinations(pool,4);
-      for(var ci=0;ci<c4a.length;ci++){
-        var g1=c4a[ci],g1map={};g1.forEach(function(p){g1map[p.id]=true;});
-        var rest=pool.filter(function(p){return !g1map[p.id];});
-        var c4b=combinations(rest,4);
-        for(var cj=0;cj<c4b.length;cj++){
-          var g2=c4b[cj],g2map={};g2.forEach(function(p){g2map[p.id]=true;});
-          var g3=rest.filter(function(p){return !g2map[p.id];});
-          var r1=scoreCourt(g1,top2,bot2,relax);
-          var r2=scoreCourt(g2,top2,bot2,relax);
-          var r3=scoreCourt(g3,top2,bot2,relax);
-          if(!r1.pair||!r2.pair||!r3.pair||r1.score===Infinity||r2.score===Infinity||r3.score===Infinity)continue;
-          var tier=Math.max(0,avgSkill(g2)-avgSkill(g1))*TIER_W+Math.max(0,avgSkill(g3)-avgSkill(g2))*TIER_W;
-          var tot=r1.score+r2.score+r3.score+tier;
-          if(tot<bestTotal){bestTotal=tot;bestResult=[r1.pair,r2.pair,r3.pair];}
-        }
-      }
+      if (highIds) result = searchCourts3(pool, top2, bot2, relax, highIds);
+      if (!result)  result = searchCourts3(pool, top2, bot2, relax, null);
     }
 
-    if (bestResult) return bestResult;
+    if (result) return result;
   }
 
   // Absolute safety fallback
-  var fb=[];
-  for(var c=0;c<courts;c++){var g=pool.slice(c*4,c*4+4);fb.push([[g[0],g[1]],[g[2],g[3]]]);}
+  var fb = [];
+  for (var c = 0; c < courts; c++) {
+    var g = pool.slice(c*4, c*4+4);
+    fb.push([[g[0],g[1]], [g[2],g[3]]]);
+  }
   return fb;
 }
+
 
 function teamColHTML(team) {
   var i0=players.indexOf(team[0]), i1=players.indexOf(team[1]);
@@ -765,6 +836,7 @@ function generateMatches() {
   partnerCounts  = {};
   opponentCounts = {};
   lastPartnerKeys = {};
+  matchHistory   = {};
   courtOffset    = 0;
 
   // Compute top-2 and bottom-2 from the full playing pool (by skill rank).
@@ -778,41 +850,77 @@ function generateMatches() {
     bot2[ppSorted[ppSorted.length-2].id] = true;
   }
 
+  // Average skill of all playing players (used for Rule C high-skill court)
+  var allAvgSkill = pp.reduce(function(s,p){return s+p.skill;},0)/pp.length;
+
   /*
    * Fair sit-out queue — pre-built upfront so no one sits out twice
    * before everyone has had a turn, and no consecutive repeats.
    */
-  var sitQueue = [];
+  /*
+   * Build sit-out queue as pre-formed GROUPS of sittingCount players.
+   * Each group = one round's sitters.
+   *
+   * The old approach built a flat list of IDs then sliced sittingCount at a
+   * time, which caused boundary-crossing groups to contain repeat players
+   * (e.g. players at positions 9,10 of a cycle of 11 would appear in both
+   * the last group of that cycle AND the first of the next).
+   *
+   * This approach builds groups directly:
+   *   1. Maintain a "remaining" pool from a shuffled cycle of all players.
+   *   2. Before each group, move last group's members to the back of remaining
+   *      so they can't appear consecutively.
+   *   3. Take the first sittingCount players as this round's sitters.
+   *   4. If the pool runs dry mid-group, refill with a new shuffled cycle.
+   */
+  var sitGroups = []; // array of arrays (player objects), one per round
   if (sittingCount > 0) {
-    var totalSitSlots = numRounds * sittingCount;
-    while (sitQueue.length < totalSitSlots) {
-      var cycle = shuffle(pp.slice()).map(function(p){ return p.id; });
-      if (sitQueue.length > 0) {
-        var lastId = sitQueue[sitQueue.length - 1];
-        var attempts = 0;
-        while (cycle[0] === lastId && attempts < cycle.length) {
-          cycle.push(cycle.shift());
-          attempts++;
+    var remaining = [];
+    var lastGroupIds = [];
+    while (sitGroups.length < numRounds) {
+      // Refill when not enough left for a full group
+      if (remaining.length < sittingCount) {
+        var newCycle = shuffle(pp.slice());
+        // Push last group's members to the back so they don't sit out again immediately
+        lastGroupIds.forEach(function(id) {
+          var idx = -1;
+          for (var ni = 0; ni < newCycle.length; ni++) {
+            if (newCycle[ni].id === id) { idx = ni; break; }
+          }
+          if (idx > -1) newCycle.push(newCycle.splice(idx, 1)[0]);
+        });
+        remaining = remaining.concat(newCycle);
+      }
+      // Take the next sittingCount players
+      var group = remaining.splice(0, sittingCount);
+      // Safety: if any group member was in lastGroup, swap with nearest safe player
+      for (var gi = 0; gi < group.length; gi++) {
+        if (lastGroupIds.indexOf(group[gi].id) >= 0) {
+          for (var ri = 0; ri < remaining.length; ri++) {
+            if (lastGroupIds.indexOf(remaining[ri].id) < 0) {
+              var tmp = group[gi]; group[gi] = remaining[ri]; remaining[ri] = tmp;
+              break;
+            }
+          }
         }
       }
-      for (var qi = 0; qi < cycle.length; qi++) sitQueue.push(cycle[qi]);
+      lastGroupIds = group.map(function(p){ return p.id; });
+      sitGroups.push(group);
     }
   }
-  var sitQueuePos = 0;
-  function pickSitters(n) {
-    var chosenIds = sitQueue.slice(sitQueuePos, sitQueuePos + n);
-    sitQueuePos += n;
-    return chosenIds.map(function(id){
-      return pp.find(function(p){ return p.id === id; });
-    }).filter(Boolean);
+  var sitGroupPos = 0;
+  function pickSitters() {
+    return sittingCount > 0 ? sitGroups[sitGroupPos++] : [];
   }
 
   var html=''; var matchNo=1;
   for(var r=0;r<numRounds;r++){
-    var sitting=sittingCount>0?pickSitters(sittingCount):[];
+    var sitting=pickSitters();
     var sittingIds=sitting.map(function(p){return p.id;});
     var active=pp.filter(function(p){return sittingIds.indexOf(p.id)<0;});
-    var matches=assignCourts(active,courts,top2,bot2);
+    // Rule C: every other round (r=1,3,5…) try a high-skill-only court
+    var forceHighCourt = (r % 2 === 1);
+    var matches=assignCourts(active,courts,top2,bot2,allAvgSkill,forceHighCourt);
 
     // Record matches and update lastPartnerKeys for next round's consecutive ban
     var thisRoundKeys={};
