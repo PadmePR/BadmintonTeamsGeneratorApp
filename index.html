@@ -100,18 +100,86 @@ background:var(--bg-secondary);z-index:9999;
     <button class="tab-btn" onclick="switchTab('matches')">Matches</button>
   </div>
 
-  <!-- (PASTE YOUR ORIGINAL HTML EXACTLY HERE — unchanged) -->
-
+ <!-- ── PLAYERS TAB ── -->
   <div id="tab-players">
-    <!-- YOUR ORIGINAL PLAYERS UI -->
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-playing">0</div><div class="stat-lbl">Playing</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-courts">—</div><div class="stat-lbl">Courts</div></div>
+      <div class="stat-box"><div class="stat-val" id="s-avg">—</div><div class="stat-lbl">Avg skill</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Add player</div>
+      <div class="add-row">
+        <input id="new-name" type="text" placeholder="Player name" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="words" />
+        <select id="new-skill">
+          <option value="1">1 — Beginner</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4 — Average</option>
+          <option value="5" selected>5</option>
+          <option value="6">6</option>
+          <option value="7">7 — Good</option>
+          <option value="8">8</option>
+          <option value="9">9 — Pro</option>
+          <option value="10">10 — Expert</option>
+        </select>
+        <button class="btn-primary" onclick="addPlayer()">+ Add</button>
+      </div>
+    </div>
+
+    <!-- Playing section -->
+    <div class="section-header">
+      <span class="section-label">Playing today</span>
+      <span class="section-count active" id="count-playing">0</span>
+    </div>
+    <div id="list-playing"></div>
+    <div id="empty-playing" class="empty-state">No active players yet.</div>
+
+    <!-- Generate shortcut -->
+    <div id="gen-shortcut-wrap" style="margin:20px 0 4px;">
+      <button id="gen-shortcut-btn" onclick="goGenerate()"
+        style="width:100%;padding:14px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;cursor:pointer;transition:opacity 0.2s;">
+        Generate matches
+      </button>
+      <div id="gen-shortcut-hint" style="text-align:center;font-size:12px;color:var(--text-tertiary);margin-top:8px;">Add at least 4 playing players to generate</div>
+    </div>
+
+    <!-- Absent section -->
+    <div id="absent-section" style="display:none;">
+      <div class="section-divider"></div>
+      <div class="section-header">
+        <span class="section-label">Absent</span>
+        <span class="section-count" id="count-absent">0</span>
+      </div>
+      <div id="list-absent"></div>
+    </div>
   </div>
 
+  <!-- ── MATCHES TAB ── -->
   <div id="tab-matches" style="display:none;">
-    <!-- YOUR ORIGINAL MATCH UI -->
+    <div id="min-players-notice" class="notice">You need at least 4 playing players to generate matches.</div>
+    <div class="gen-controls">
+      <label for="match-count">Rounds</label>
+      <input type="number" id="match-count" class="count-input" value="4" min="1" max="30" />
+      <div class="action-row">
+        <button class="btn-primary" onclick="generateMatches()">Generate</button>
+        <button class="btn-secondary" id="regen-btn" style="display:none;" onclick="generateMatches()">Reshuffle</button>
+        <button class="btn-pdf"     id="pdf-btn"   style="display:none;" onclick="exportPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Save as PDF
+        </button>
+        <button class="btn-danger"  id="clear-btn" style="display:none;" onclick="clearMatches()">Delete list</button>
+      </div>
+    </div>
+    <div id="courts-info-bar" class="courts-info-bar" style="display:none;"></div>
+    <div id="saved-banner" class="saved-banner" style="display:none;"></div>
+    <div id="matches-out"></div>
+    <div id="no-matches-msg" class="empty-state" style="display:none;">No match list yet. Add players, then tap Generate.</div>
   </div>
 
-</div>
-
+</div><!-- /container -->
 <script>
 /* ================= SUPABASE CONFIG ================= */
 const SUPABASE_URL = "https://fwrtpzrcjfvultdtdcto.supabase.co";
