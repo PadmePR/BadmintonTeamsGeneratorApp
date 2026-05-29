@@ -35,12 +35,17 @@
   }
   .container { max-width: 720px; margin: 0 auto; }
 
-  header { display: flex; align-items: center; margin-bottom: 28px; }
-  header > * + * { margin-left: 14px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .header-left { display: flex; align-items: center; }
+  .header-left > * + * { margin-left: 14px; }
   .logo { width: 44px; height: 44px; background: var(--accent); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .logo svg { width: 24px; height: 24px; }
   h1 { font-size: 22px; font-weight: 600; color: var(--text); }
   .sub { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  
+  .profile-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border-medium); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text); }
+  .profile-btn:active { background: var(--bg-secondary); }
+  .profile-btn svg { width: 24px; height: 24px; }
 
   .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
   .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 14px; }
@@ -61,7 +66,7 @@
   .add-row input { flex: 1; min-width: 140px; }
   .add-row select {
     width: 160px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px;
   }
 
@@ -127,7 +132,7 @@
     .btn-toggle.to-playing { color: #4A9EE8; border-color: #1a3a5a; background: #0C2A4A; }
   }
 
-  .btn-remove { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-medium); background: none; cursor: pointer; color: var(--text-tertiary); font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+  .btn-remove { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-medium); background: none; cursor: pointer; color: var(--text-tertiary); font-size: 18px; display: flex; align-items: center; justify-content: center; }
   .btn-remove:active { background: #FCEBEB; color: #A32D2D; }
 
   .empty-state { text-align: center; padding: 24px 16px; color: var(--text-tertiary); font-size: 14px; border: 1px dashed var(--border-medium); border-radius: var(--radius); margin-bottom: 8px; }
@@ -136,7 +141,7 @@
   .gen-controls { display: flex; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
   .gen-controls > * + * { margin-left: 10px; }
   .gen-controls label { font-size: 14px; color: var(--text-secondary); }
-  .count-input { width: 72px; padding: 11px 12px; border: 1px solid var(--border-medium); border-radius: var(--radius); font-size: 16px; background: var(--bg); color: var(--text); font-family: inherit; outline: none; text-align: center; -webkit-appearance: none; appearance: none; }
+  .count-input { width: 72px; padding: 11px 12px; border: 1px solid var(--border-medium); border-radius: var(--radius); font-size: 16px; background: var(--bg); color: var(--text); font-family: inherit; }
   .count-input:focus { border-color: var(--accent); }
   .action-row { display: flex; align-items: center; flex-wrap: wrap; }
   .action-row > * + * { margin-left: 8px; }
@@ -201,10 +206,10 @@
 
   .tab-bar { display: flex; background: var(--bg-secondary); border-radius: var(--radius); padding: 4px; margin-bottom: 20px; }
   .tab-bar > * + * { margin-left: 4px; }
-  .tab-btn { flex: 1; padding: 9px; border: none; background: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: background 0.15s, color 0.15s; }
+  .tab-btn { flex: 1; padding: 9px; border: none; background: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; color: var(--text-secondary); transition: background 0.15s; }
   .tab-btn.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 
-  .notice { background: var(--accent-light); border: 1px solid rgba(24,95,165,0.2); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--accent); margin-bottom: 16px; display: none; }
+  .notice { background: var(--accent-light); border: 1px solid rgba(24,95,165,0.2); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; }
 
   @media (max-width: 520px) {
     .courts-2, .courts-3 { grid-template-columns: 1fr; }
@@ -251,6 +256,31 @@
   .login-input:focus { outline:none; border-color:var(--accent); }
   .login-msg { font-size:12px; color:#A32D2D; margin-top:10px; }
 
+  /* Account Settings Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9998; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal-content { width: 100%; max-width: 450px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .modal-close { width: 32px; height: 32px; border: none; background: none; cursor: pointer; color: var(--text-secondary); font-size: 24px; display: flex; align-items: center; justify-content: center; }
+  .modal-close:active { color: var(--text); }
+  
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 8px; }
+  .form-input, .form-select { width: 100%; padding: 12px; border: 1px solid var(--border-medium); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit; }
+  .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+  .form-helper { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+  .form-error { font-size: 12px; color: #A32D2D; margin-top: 6px; }
+  
+  .skill-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .skill-option { padding: 10px; border: 2px solid var(--border); border-radius: var(--radius); text-align: center; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  .skill-option:active { opacity: 0.8; }
+  .skill-option.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+  
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .modal-actions > button { flex: 1; }
+  .modal-actions .btn-primary { margin-bottom: 0; }
+
   #pdf-header { display: none; margin-bottom: 30px; }
   #pdf-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
   #pdf-subtitle { font-size: 14px; color: var(--text-secondary); }
@@ -278,21 +308,96 @@
   </div>
 </div>
 
+<!-- Account Settings Modal -->
+<div id="account-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title">Account Settings</h2>
+      <button class="modal-close" onclick="closeAccountModal()">×</button>
+    </div>
+
+    <form onsubmit="saveAccountSettings(event)">
+      <!-- Username -->
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="account-username" class="form-input" type="text" placeholder="Enter your name" maxlength="50" />
+        <div class="form-helper">This name will be visible in your player profile</div>
+      </div>
+
+      <!-- Skill Level -->
+      <div class="form-group">
+        <label class="form-label">Your Skill Level</label>
+        <div class="skill-selector" id="skill-selector">
+          <button type="button" class="skill-option" onclick="selectSkill(1)">1</button>
+          <button type="button" class="skill-option" onclick="selectSkill(2)">2</button>
+          <button type="button" class="skill-option" onclick="selectSkill(3)">3</button>
+          <button type="button" class="skill-option" onclick="selectSkill(4)">4</button>
+          <button type="button" class="skill-option" onclick="selectSkill(5)">5</button>
+          <button type="button" class="skill-option" onclick="selectSkill(6)">6</button>
+          <button type="button" class="skill-option" onclick="selectSkill(7)">7</button>
+          <button type="button" class="skill-option" onclick="selectSkill(8)">8</button>
+          <button type="button" class="skill-option" onclick="selectSkill(9)">9</button>
+          <button type="button" class="skill-option" onclick="selectSkill(10)">10</button>
+        </div>
+        <div class="form-helper">1 = Beginner, 10 = Expert</div>
+      </div>
+
+      <!-- Change Password Section -->
+      <div style="border-top: 1px solid var(--border); padding-top: 20px; margin-top: 20px;">
+        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--text);">Change Password</h3>
+        
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <input id="current-password" class="form-input" type="password" placeholder="Enter current password" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input id="new-password" class="form-input" type="password" placeholder="Enter new password" />
+          <div class="form-helper">Minimum 6 characters</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input id="confirm-password" class="form-input" type="password" placeholder="Confirm new password" />
+        </div>
+
+        <div id="password-error" class="form-error" style="display: none;"></div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeAccountModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save Changes</button>
+      </div>
+    </form>
+
+    <!-- Logout Button -->
+    <button onclick="logout()" class="btn-danger" style="width: 100%; margin-top: 16px;">Logout</button>
+  </div>
+</div>
+
 <div class="container" id="app" style="display:none;">
   <header>
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-        <ellipse cx="12" cy="5" rx="3" ry="4"/>
-        <path d="M12 9l6 12H6L12 9z"/>
+    <div class="header-left">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <ellipse cx="12" cy="5" rx="3" ry="4"/>
+          <path d="M12 9l6 12H6L12 9z"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Badminton Team Generator</h1>
+        <div class="sub">Balanced doubles · simultaneous courts · fair rotation</div>
+      </div>
+    </div>
+    <button onclick="openAccountModal()" class="profile-btn" title="Account Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3-7 8-7s8 3 8 7"/>
       </svg>
-    </div>
-    <div>
-      <h1>Badminton Team Generator</h1>
-      <div class="sub">Balanced doubles · simultaneous courts · fair rotation</div>
-    </div>
+    </button>
   </header>
-
-  <button onclick="logout()" class="btn-secondary" style="margin-bottom:16px;">Logout</button>
 
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('players')">Players</button>
@@ -335,7 +440,7 @@
     <div id="empty-playing" class="empty-state">No active players yet.</div>
 
     <div id="gen-shortcut-wrap" style="margin:20px 0 4px;">
-      <button id="gen-shortcut-btn" onclick="goGenerate()" style="width:100%;padding:14px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;cursor:pointer;">Generate matches</button>
+      <button id="gen-shortcut-btn" onclick="goGenerate()" style="width:100%;padding:14px;background:var(--accent);color:white;border:none;border-radius:var(--radius);font-size:16px;font-weight:600;cursor:pointer;">Generate Matches</button>
       <div id="gen-shortcut-hint" style="text-align:center;font-size:12px;color:var(--text-tertiary);margin-top:8px;">Add at least 4 playing players to generate</div>
     </div>
 
@@ -361,7 +466,7 @@
       <div class="action-row">
         <button class="btn-primary" onclick="generateMatches()">Generate</button>
         <button class="btn-secondary" id="regen-btn" style="display:none;" onclick="generateMatches()">Reshuffle</button>
-        <button class="btn-pdf" id="pdf-btn" style="display:none;" onclick="exportPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Save as PDF</button>
+        <button class="btn-pdf" id="pdf-btn" style="display:none;" onclick="exportPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/><path d="M12 7v4M12 13h.01"/></svg>PDF</button>
         <button class="btn-danger" id="clear-btn" style="display:none;" onclick="clearMatches()">Delete list</button>
       </div>
     </div>
@@ -382,6 +487,7 @@ let currentUser = null;
 let players = [];
 let savedMatchHTML = '';
 let savedMatchMeta = null;
+let selectedSkillLevel = 5;
 
 const palette = [
   {bg:'#E6F1FB',fg:'#0C447C'},{bg:'#EAF3DE',fg:'#27500A'},{bg:'#EEEDFE',fg:'#3C3489'},{bg:'#FAEEDA',fg:'#633806'},
@@ -402,6 +508,7 @@ async function checkUser() {
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("app").style.display = "block";
     loadData();
+    loadUserProfile();
   }
 }
 
@@ -493,6 +600,124 @@ async function saveMatches() {
 async function clearMatchesDB() {
   if (!currentUser) return;
   await sb.from("matches").delete().eq("user_id", currentUser.id);
+}
+
+// Account Settings Functions
+function openAccountModal() {
+  document.getElementById("account-modal").classList.add("open");
+  loadUserProfile();
+}
+
+function closeAccountModal() {
+  document.getElementById("account-modal").classList.remove("open");
+  document.getElementById("password-error").style.display = "none";
+}
+
+async function loadUserProfile() {
+  if (!currentUser) return;
+  
+  // Get user metadata
+  const username = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || '';
+  const skillLevel = currentUser.user_metadata?.skill_level || 5;
+  
+  document.getElementById("account-username").value = username;
+  selectedSkillLevel = skillLevel;
+  updateSkillSelector();
+}
+
+function selectSkill(level) {
+  selectedSkillLevel = level;
+  updateSkillSelector();
+}
+
+function updateSkillSelector() {
+  const buttons = document.querySelectorAll('.skill-option');
+  buttons.forEach(btn => {
+    const level = parseInt(btn.textContent);
+    btn.classList.toggle('selected', level === selectedSkillLevel);
+  });
+}
+
+async function saveAccountSettings(event) {
+  event.preventDefault();
+  
+  const username = document.getElementById("account-username").value.trim();
+  const currentPassword = document.getElementById("current-password").value;
+  const newPassword = document.getElementById("new-password").value;
+  const confirmPassword = document.getElementById("confirm-password").value;
+  const passwordError = document.getElementById("password-error");
+  
+  passwordError.style.display = "none";
+
+  // Validate username
+  if (!username) {
+    alert("Username cannot be empty");
+    return;
+  }
+
+  // Update user metadata (username and skill level)
+  const { error: updateError } = await sb.auth.updateUser({
+    data: {
+      username: username,
+      skill_level: selectedSkillLevel
+    }
+  });
+
+  if (updateError) {
+    alert("Failed to save profile: " + updateError.message);
+    return;
+  }
+
+  // Handle password change if new password is provided
+  if (newPassword) {
+    if (newPassword.length < 6) {
+      passwordError.textContent = "New password must be at least 6 characters";
+      passwordError.style.display = "block";
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      passwordError.textContent = "Passwords do not match";
+      passwordError.style.display = "block";
+      return;
+    }
+
+    // Re-authenticate with current password before changing password
+    const { error: signInError } = await sb.auth.signInWithPassword({
+      email: currentUser.email,
+      password: currentPassword
+    });
+
+    if (signInError) {
+      passwordError.textContent = "Current password is incorrect";
+      passwordError.style.display = "block";
+      return;
+    }
+
+    // Update password
+    const { error: passwordError: pwdErr } = await sb.auth.updateUser({
+      password: newPassword
+    });
+
+    if (pwdErr) {
+      passwordError.textContent = "Failed to change password: " + pwdErr.message;
+      passwordError.style.display = "block";
+      return;
+    }
+  }
+
+  // Refresh current user
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+  }
+
+  alert("Settings saved successfully!");
+  closeAccountModal();
+  // Clear password fields
+  document.getElementById("current-password").value = '';
+  document.getElementById("new-password").value = '';
+  document.getElementById("confirm-password").value = '';
 }
 
 async function addPlayer() {
@@ -803,7 +1028,7 @@ function assignCourts(active, courts, top2, bot2, allAvgSkill, forceHighCourt) {
 
 function teamColHTML(team) {
   const i0 = players.indexOf(team[0]), i1 = players.indexOf(team[1]);
-  return `<div class="team-col">${tpHTML(team[0], col(i0 < 0 ? 0 : i0))}${tpHTML(team[1], col(i1 < 0 ? 0 : i1))}<div class="team-footer"><span>Combined</span><span class="team-total-val">${team[0].skill + team[1].skill}/20</span></div></div>`;
+  return `<div class="team-col">${tpHTML(team[0], col(i0 < 0 ? 0 : i0))}${tpHTML(team[1], col(i1 < 0 ? 0 : i1))}<div class="team-footer"><span>Combined</span><span class="team-total-val">${team[0].skill + team[1].skill}</span></div></div>`;
 }
 
 function tpHTML(p, c) {
@@ -822,7 +1047,7 @@ async function generateMatches() {
   const numRounds = Math.max(1, Math.min(30, parseInt(document.getElementById('match-count').value) || 4));
   const sittingCount = pp.length - (courts * 4);
 
-  const infoHTML = `<span><strong>${courts}</strong> court${courts > 1 ? 's' : ''} at once</span><span class="sep">&middot;</span><span><strong>${courts * 4}</strong> players per round</span>${sittingCount > 0 ? `<span class="sep">&middot;</span><span><strong>${sittingCount}</strong> sit out per round</span>` : '<span class="sep">&middot;</span><span>Everyone plays every round</span>'}`;
+  const infoHTML = `<span><strong>${courts}</strong> court${courts > 1 ? 's' : ''} at once</span><span class="sep">&middot;</span><span><strong>${courts * 4}</strong> players per round</span>${sittingCount > 0 ? `<span class="sep">&middot;</span><span><strong>${sittingCount}</strong> sitting out</span>` : ''}`;
 
   partnerCounts = {}; opponentCounts = {}; lastPartnerKeys = {}; matchHistory = {}; courtOffset = 0;
 
@@ -884,7 +1109,7 @@ async function generateMatches() {
     });
     lastPartnerKeys = thisRoundKeys;
 
-    html += `<div class="round-block"><div class="round-header"><span class="round-label">Round ${r + 1}</span><span class="round-courts-badge">${courts} court${courts > 1 ? 's' : ''} simultaneous</span>${sitting.length ? `<span class="round-sitting-badge">${sitting.length} sitting out</span>` : ''}<div class="round-divider"></div></div><div class="courts-grid courts-${Math.min(courts, 3)}">`;
+    html += `<div class="round-block"><div class="round-header"><span class="round-label">Round ${r + 1}</span><span class="round-courts-badge">${courts} court${courts > 1 ? 's' : ''} simultaneous</span><div class="round-divider"></div></div><div class="courts-grid courts-${courts}">`;
 
     for (let c = 0; c < matches.length; c++) {
       const [t1, t2] = matches[c];
@@ -901,7 +1126,7 @@ async function generateMatches() {
       html += '<div class="sitting-out"><span class="sitting-label">Sitting out:</span><div class="sitting-players">';
       sitting.forEach(p => {
         const ci = players.indexOf(p), co = col(ci < 0 ? 0 : ci), lab = sl(p.skill);
-        html += `<div class="sitting-chip"><div class="sitting-av" style="background:${co.bg};color:${co.fg}">${ini(p.name)}</div><span class="sitting-nm">${esc(p.name)} <span style="color:${lab.fg}">${p.skill}</span></span></div>`;
+        html += `<div class="sitting-chip"><div class="sitting-av" style="background:${co.bg};color:${co.fg}">${ini(p.name)}</div><span class="sitting-nm">${esc(p.name)} <span style="color:${lab.fg};">${lab.t}</span></span></div>`;
       });
       html += '</div></div>';
     }
@@ -950,7 +1175,7 @@ function renderSavedBanner() {
   if (!savedMatchMeta) return;
   const m = savedMatchMeta;
   document.getElementById('saved-banner').style.display = 'block';
-  document.getElementById('saved-banner').innerHTML = `Saved on <strong>${esc(m.date)}</strong> &nbsp;&middot;&nbsp; ${m.players} players &nbsp;&middot;&nbsp; ${m.rounds} round${m.rounds > 1 ? 's' : ''} &nbsp;&middot;&nbsp; ${m.courts} court${m.courts > 1 ? 's' : ''}`;
+  document.getElementById('saved-banner').innerHTML = `Saved on <strong>${esc(m.date)}</strong> &nbsp;&middot;&nbsp; ${m.players} players &nbsp;&middot;&nbsp; ${m.rounds} round${m.rounds > 1 ? 's' : ''}`;
 }
 
 async function clearMatches() {
@@ -965,7 +1190,7 @@ function exportPDF() {
   if (!savedMatchMeta) return;
   const m = savedMatchMeta;
   document.getElementById('pdf-title').textContent = 'Badminton Matches — ' + m.date;
-  document.getElementById('pdf-subtitle').textContent = m.players + ' players · ' + m.rounds + ' round' + (m.rounds > 1 ? 's' : '') + ' · ' + m.courts + ' court' + (m.courts > 1 ? 's' : '') + ' simultaneous';
+  document.getElementById('pdf-subtitle').textContent = m.players + ' players · ' + m.rounds + ' round' + (m.rounds > 1 ? 's' : '') + ' · ' + m.courts + ' court' + (m.courts > 1 ? 's' : '');
   window.print();
 }
 
