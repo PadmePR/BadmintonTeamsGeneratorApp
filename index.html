@@ -616,12 +616,29 @@ function closeAccountModal() {
 async function loadUserProfile() {
   if (!currentUser) return;
   
-  // Get user metadata
-  const username = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || '';
-  const skillLevel = currentUser.user_metadata?.skill_level || 5;
+  try {
+    // Load profile from user_profiles table
+    const { data, error } = await sb
+      .from('user_profiles')
+      .select('username, skill_level')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+    
+    if (data) {
+      document.getElementById("account-username").value = data.username || '';
+      selectedSkillLevel = data.skill_level || 5;
+    } else {
+      // Fallback to auth metadata if table record doesn't exist
+      const username = currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || '';
+      document.getElementById("account-username").value = username;
+      selectedSkillLevel = currentUser.user_metadata?.skill_level || 5;
+    }
+  } catch (err) {
+    console.error("Error loading profile:", err);
+    document.getElementById("account-username").value = currentUser.email?.split('@')[0] || '';
+    selectedSkillLevel = 5;
+  }
   
-  document.getElementById("account-username").value = username;
-  selectedSkillLevel = skillLevel;
   updateSkillSelector();
 }
 
@@ -655,7 +672,7 @@ async function saveAccountSettings(event) {
     return;
   }
 
-  // Update user metadata (username and skill level)
+  // Update user metadata (auth)
   const { error: updateError } = await sb.auth.updateUser({
     data: {
       username: username,
@@ -666,6 +683,20 @@ async function saveAccountSettings(event) {
   if (updateError) {
     alert("Failed to save profile: " + updateError.message);
     return;
+  }
+
+  // Also save to user_profiles table
+  const { error: profileError } = await sb
+    .from('user_profiles')
+    .upsert({
+      id: currentUser.id,
+      username: username,
+      skill_level: selectedSkillLevel,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' });
+
+  if (profileError) {
+    console.error("Profile table error:", profileError);
   }
 
   // Handle password change if new password is provided
@@ -695,7 +726,7 @@ async function saveAccountSettings(event) {
     }
 
     // Update password
-    const { error: passwordError: pwdErr } = await sb.auth.updateUser({
+    const { error: pwdErr } = await sb.auth.updateUser({
       password: newPassword
     });
 
