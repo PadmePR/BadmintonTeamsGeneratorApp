@@ -96,31 +96,58 @@
   .skill-num { font-size: 13px; font-weight: 600; color: var(--text-secondary); min-width: 20px; text-align: center; }
 
   .skill-editor {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
-  .skill-btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 1px solid var(--border-medium);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-  }
+.skill-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 18px;
+  text-align: center;
 
-  .skill-btn:active {
-    background: var(--bg-secondary);
-  }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 24px;
+}
+
+.skill-arrows {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  height: 24px;
+}
+
+.skill-btn {
+  width: 16px;
+  height: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+  line-height: 1;
+}
+
+.skill-btn:hover {
+  color: var(--accent);
+}
+
+.skill-btn:active {
+  transform: scale(0.9);
+}
 
   .btn-toggle { height: 28px; padding: 0 10px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; border: 1px solid; }
   .btn-toggle.to-absent  { color: #7a5c00; border-color: #d4a820; background: #fff8e0; }
@@ -798,10 +825,13 @@ function playerRowHTML(p, gIdx) {
     <span class="player-name">${esc(p.name)}</span>
     <span class="skill-badge" style="background:${lab.bg};color:${lab.fg}">${lab.t}</span>
     <div class="skill-editor">
-      <button class="skill-btn" onclick="changeSkill(${sid}, -1)">−</button>
-      <span class="skill-num">${p.skill}</span>
-      <button class="skill-btn" onclick="changeSkill(${sid}, 1)">+</button>
-    </div>
+  <span class="skill-num">${p.skill}</span>
+
+  <div class="skill-arrows">
+    <button class="skill-btn" onclick="changeSkill(${sid}, 1)">▲</button>
+    <button class="skill-btn" onclick="changeSkill(${sid}, -1)">▼</button>
+  </div>
+</div>
     ${tog}
     <button class="btn-remove" onclick="removePlayer(${sid})">×</button>
   </div>`;
